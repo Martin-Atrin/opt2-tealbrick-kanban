@@ -77,7 +77,7 @@ When you plan work for several agents:
 - Send an idempotency key with every `create` call (`issue_create`, `goal_create`, `issue_comment_add`). Repeating
   a call with the same key returns the first result instead of a duplicate.
 - When an issue is one more run of repeated work (a weekly report, a recurring check), set `template` on
-  `issue_create` to a short stable key such as `weekly-report`. The owner and Evolution use it to see repeated work.
+  `issue_create` to a short stable lowercase key such as `weekly-report` (uppercase is refused). The owner and Evolution use it to see repeated work.
 - Deleting is held for the owner's approval. If a call answers `held`, poll `kanban__tb_hold_status` with the
   `holdId`, then repeat the same call with the same input and key.
 - If a call answers `not_found`, you cannot see that item. Do not guess ids. List first.

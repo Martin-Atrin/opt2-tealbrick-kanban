@@ -83,6 +83,7 @@ import {
   updateIssue,
   updateProject,
   upsertAgent,
+  upsertApp,
 } from "./board.ts";
 
 export const manifest = JSON.parse(readFileSync(new URL("../tealbrick.manifest.json", import.meta.url), "utf8")) as AppDefinition["manifest"];
@@ -105,8 +106,16 @@ export function actorOf(ctx: Pick<OpContext, "caller">): Actor {
 async function prepare(ctx: OpContext): Promise<Actor> {
   const a = actorOf(ctx);
   if (a.kind === "agent") upsertAgent(ctx.db, { id: a.id, name: a.name, mode: ctx.caller.mode ?? "free" });
+  if (a.kind === "app") a.name = upsertApp(ctx.db, a);
   if (a.kind !== "owner" && ensureOwnProject(ctx.db, a)) await ctx.scopes.instances.create(PROJECT_SCOPE, a.id, `${a.name} work`.slice(0, 80), { ownerAgent: a.id as never });
   return a;
+}
+/** Template keys are lowercase (QA S3): refuse uppercase with a clear message instead of changing the key. */
+function templateKey(v: string | undefined): string | undefined {
+  if (v === undefined) return undefined;
+  if (!/^[a-z0-9][a-z0-9._:-]*$/.test(v))
+    throw new TbError("template_invalid", `template keys are lowercase (a-z, 0-9 and . _ : -): use "${v.toLowerCase()}", not "${v}"`, 400);
+  return v;
 }
 /** Free text after trim must not be empty (the schema checks only the raw length). */
 function text(v: string, field: string): string {
@@ -253,7 +262,7 @@ export const handlers = {
         status: i.status,
         assignee: i.assignee === undefined ? undefined : resolveAssignee(ctx.db, i.assignee, a, true),
         goal: i.goal,
-        template: i.template,
+        template: templateKey(i.template),
         ready: i.ready,
         limit: i.limit ?? 50,
         cursor: i.cursor,
@@ -276,7 +285,7 @@ export const handlers = {
       const project = ownOr(i.project, ctx.caller);
       await needProject(ctx, project, "create");
       const who = assignee(ctx, i.assignee, a);
-      return { issue: tx(ctx, () => createIssue(ctx.db, { ...i, project, assignee: who }, a)) };
+      return { issue: tx(ctx, () => createIssue(ctx.db, { ...i, template: templateKey(i.template), project, assignee: who }, a)) };
     },
   }),
   [OP.issueUpdate]: op<IssueUpdateInput, unknown>({

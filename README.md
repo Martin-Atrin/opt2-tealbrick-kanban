@@ -32,10 +32,13 @@ operation id (`src/app.ts`) and plain migrations (`migrations/`).
 - **One status vocabulary**: `backlog`, `todo`, `in_progress`, `in_review`, `blocked`, `done`. An issue is **ready**
   when it is `todo` and every issue it depends on (`dependsOn`, same project, no cycles) is `done`. Completing,
   unlinking or deleting a dependency writes a `promoted` activity entry on each issue that becomes ready.
+- **Apps by name.** Issues, comments and activity written by a companion app show "<name> (app)" from the SDK's
+  verified caller name, or "App <instance id>" until the SDK knows the name (spec `companionCallers`, C102).
 - **Names on everything.** The author of every issue, comment and activity entry is the verified caller (agent,
   companion app or the owner), never a free-text label. Assignee = an agent id from the workspace directory, or the
   owner.
-- **`template`** (optional, on `issue_create`, filter on `issues_list`): a stable key for repeated work, so Evolution
+- **`template`** (optional, on `issue_create`, filter on `issues_list`): a stable lowercase key for repeated work
+  (uppercase is refused with `template_invalid`, never changed), so Evolution
   can group done issues (contract: `issues_list {status: "done", limit: 200}` → `id, title, status, assignee, template`).
 - **`work_next`**: an agent's ready issues and its issues in progress (the target for the coming poll mode).
 - **Shared projects reach every agent**: a project created or switched to shared gets the `shared` default grant

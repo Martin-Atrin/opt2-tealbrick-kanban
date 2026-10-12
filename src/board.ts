@@ -120,6 +120,27 @@ export function listAgents(db: Db): AgentView[] {
     .all()
     .map((r) => ({ id: String(r.id), name: String(r.name), mode: String(r.mode), active: Number(r.active) === 1 }));
 }
+// ---------------------------------------------------------------- apps (companion callers, QA S3)
+
+/** The display name of an app caller: "<name> (app)" when the SDK names it, else "App <instance id>". */
+export function appLabel(id: string, name: string | null): string {
+  return name && name !== id ? `${name} (app)` : `App ${id}`;
+}
+/** Records an app caller; `name` is the SDK's verified caller name (equal to the id when the SDK does not know it). */
+export function upsertApp(db: Db, app: { id: string; name: string }, now = Date.now()): string {
+  const name = app.name && app.name !== app.id ? app.name : null;
+  db.prepare("INSERT INTO apps (id, name, last_seen) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = COALESCE(excluded.name, name), last_seen = excluded.last_seen").run(
+    app.id,
+    name,
+    now,
+  );
+  return appLabel(app.id, appName(db, app.id));
+}
+function appName(db: Db, id: string): string | null {
+  const r = db.prepare("SELECT name FROM apps WHERE id = ?").get(id);
+  return r?.name === null || r?.name === undefined ? null : String(r.name);
+}
+
 function agentName(db: Db, id: string): string | null {
   const r = db.prepare("SELECT name FROM agents WHERE id = ?").get(id);
   return r ? String(r.name) : null;
@@ -155,12 +176,12 @@ export function logActivity(db: Db, e: { project: string; issue: string | null; 
   );
 }
 
-function toActivity(r: Row): ActivityView {
+function toActivity(db: Db, r: Row): ActivityView {
   return {
     id: String(r.id),
     project: String(r.project),
     issue: strOrNull(r.issue),
-    actor: { kind: String(r.actor_kind) as Actor["kind"], id: String(r.actor_id), name: String(r.actor_name) },
+    actor: actorOf(db, r.actor_kind, r.actor_id, r.actor_name),
     kind: String(r.kind),
     summary: String(r.summary),
     createdAt: iso(r.created_at),
@@ -180,7 +201,7 @@ export function listActivity(db: Db, f: { projects: readonly string[]; issue?: s
   const rows = db
     .prepare(`SELECT * FROM activity WHERE ${where.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`)
     .all(...args, f.limit + 1, offset);
-  return { activity: rows.slice(0, f.limit).map(toActivity), cursor: rows.length > f.limit ? String(offset + f.limit) : null };
+  return { activity: rows.slice(0, f.limit).map((r) => toActivity(db, r)), cursor: rows.length > f.limit ? String(offset + f.limit) : null };
 }
 
 function parseCursor(c: string | undefined): number {
@@ -391,6 +412,7 @@ export function isReady(db: Db, id: string, status?: string): boolean {
 function actorOf(db: Db, kind: unknown, id: unknown, storedName?: unknown): Actor {
   const k = String(kind) as Actor["kind"];
   if (k === "owner") return { kind: "owner", id: String(id), name: OWNER_NAME };
+  if (k === "app") return { kind: "app", id: String(id), name: appLabel(String(id), appName(db, String(id))) };
   const name = (k === "agent" ? agentName(db, String(id)) : null) ?? (storedName === undefined ? null : String(storedName)) ?? String(id);
   return { kind: k, id: String(id), name };
 }

@@ -301,3 +301,33 @@ test("QA S2 (SDK 0.1.13): owner projects are created and re-shared as shared sco
   assert.equal(manifest.operations.some((o) => o.id === "board_share_sync"), false);
   assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name = 'share_grants'").get(), undefined, "migration 0003 drops the table");
 });
+
+test("QA S3 0.1.4: app callers render as '<name> (app)', or 'App <instance id>' while the SDK knows only the id; names update everywhere", async () => {
+  const db = workspace();
+  const id = "ins_01J0000000000000000000EVO";
+  const anon = ctxFor(db, { type: "app", id, name: id }, { [id]: CRUD.manage });
+  const i = (await call("issue_create", { title: "Weekly report run" }, anon)) as any;
+  assert.equal(i.issue.createdBy.name, `App ${id}`);
+  await call("issue_comment_add", { issue: i.issue.id, body: "run ok" }, anon);
+  // later the SDK names the caller (spec companionCallers, C102): every past row shows the name
+  const named = ctxFor(db, { type: "app", id, name: "Evolution" }, { [id]: CRUD.manage });
+  await call("projects_list", {}, named);
+  const owner = ctxFor(db, OWNER);
+  const d = (await call("board_issue", { issue: i.issue.id }, owner)) as any;
+  assert.equal(d.issue.createdBy.name, "Evolution (app)");
+  assert.equal(d.comments[0].author.name, "Evolution (app)");
+  assert.ok(d.activity.every((e: any) => e.actor.name === "Evolution (app)"));
+  // an unnamed call after that keeps the known name
+  await call("projects_list", {}, anon);
+  assert.equal(((await call("board_issue", { issue: i.issue.id }, owner)) as any).issue.createdBy.name, "Evolution (app)");
+});
+
+test("QA S3 0.1.4: template keys are lowercase; uppercase is refused with template_invalid and a clear message", async () => {
+  const db = workspace();
+  upsertAgent(db, { id: A.id, name: A.name, mode: "free" });
+  const a = ctxFor(db, A, { [A.id]: CRUD.manage });
+  await assert.rejects(call("issue_create", { title: "t", template: "Weekly-Report" }, a), (e: any) => e.code === "template_invalid" && /use "weekly-report"/.test(e.message));
+  await assert.rejects(call("issues_list", { template: "Weekly-Report" }, a), { code: "template_invalid" });
+  const ok = (await call("issue_create", { title: "t", template: "weekly-report" }, a)) as any;
+  assert.equal(ok.issue.template, "weekly-report", "stored exactly as given");
+});

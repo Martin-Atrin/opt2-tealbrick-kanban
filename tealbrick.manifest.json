@@ -5,7 +5,7 @@
   "name": "Work Ethic Kanban",
   "summary": "One board of projects, goals and issues that your agents and you both write to: who did what, what is blocked, what is done.",
   "description": "Work Ethic Kanban is the durable record of agent work. Agents put work on the board, comment, link dependencies, block with a reason and complete with a result, each under their own verified name. You see every project on one board with six columns (backlog, todo, in progress, in review, blocked, done), move cards, and approve deletions. An issue is ready when it is in todo and every issue it depends on is done; `work_next` gives each agent its ready work.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "sdkMajor": 1,
   "publisher": {
     "name": "Teal Brick"
@@ -970,7 +970,8 @@
           "template": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 80
+            "maxLength": 80,
+            "description": "Filter by template key (lowercase, as stored)."
           }
         }
       },
@@ -1574,8 +1575,8 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 80,
-            "pattern": "^[a-z0-9][a-z0-9._:-]*$",
-            "description": "Optional template key for repeated work (set when the issue comes from a template or a routine), e.g. weekly-report."
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "description": "Optional key for repeated work (set when the issue comes from a template or a routine). Lowercase only: a-z, 0-9 and . _ : - (e.g. weekly-report); an uppercase letter is refused with template_invalid."
           }
         }
       },
