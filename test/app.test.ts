@@ -224,3 +224,28 @@ test("an app caller (companion grant) gets its own project and can log issues; i
   await assert.rejects(call("issue_update", { issue: i.issue.id, assignee: "me" }, app), { code: "assignee_invalid" });
   assert.deepEqual(await call("work_next", {}, app), { ready: [], inProgress: [] });
 });
+
+test("Evolution contract: issues_list {status: done, limit: 200} from an app caller sees shared projects only, with template", async () => {
+  const db = workspace();
+  upsertAgent(db, { id: A.id, name: A.name, mode: "free" });
+  insertProject(db, { id: "prj_shared", name: "Ops", shared: true, ownerAgent: null }, { kind: "owner", id: OWNER.id, name: "Owner" });
+  insertProject(db, { id: "prj_private", name: "Private", shared: false, ownerAgent: null }, { kind: "owner", id: OWNER.id, name: "Owner" });
+  const a = ctxFor(db, A, { prj_shared: CRUD.contribute, prj_private: CRUD.contribute, [A.id]: CRUD.manage });
+  for (const p of ["prj_shared", "prj_private"]) {
+    const i = (await call("issue_create", { project: p, title: "Weekly report", template: "weekly-report", assignee: "me" }, a)) as any;
+    assert.equal(i.issue.template, "weekly-report");
+    await call("issue_complete", { issue: i.issue.id, result: "sent" }, a);
+  }
+  await call("issue_create", { project: "prj_shared", title: "One-off" }, a);
+  // C87: an app caller has only Kanban's defaultGrants: its own project (manage) + shared projects (contribute)
+  const evo = ctxFor(db, { type: "app", id: "ins_01J0000000000000000000EVO", name: "Evolution" }, { prj_shared: CRUD.contribute, ins_01J0000000000000000000EVO: CRUD.manage });
+  const out = (await call("issues_list", { status: "done", limit: 200 }, evo)) as any;
+  assert.equal(out.issues.length, 1, "the private project is not visible");
+  const [row] = out.issues;
+  assert.deepEqual(
+    { id: typeof row.id, title: row.title, status: row.status, assignee: row.assignee, template: row.template },
+    { id: "string", title: "Weekly report", status: "done", assignee: { kind: "agent", id: A.id, name: "Agent A" }, template: "weekly-report" },
+  );
+  const byTemplate = (await call("issues_list", { template: "weekly-report" }, a)) as any;
+  assert.equal(byTemplate.issues.length, 2);
+});

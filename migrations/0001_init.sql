@@ -45,6 +45,7 @@ CREATE TABLE issues (
   assignee_kind TEXT,
   assignee_id TEXT,
   goal TEXT,
+  template TEXT,
   blocked_reason TEXT,
   result TEXT,
   created_by_kind TEXT NOT NULL,
@@ -56,6 +57,7 @@ CREATE TABLE issues (
 );
 CREATE INDEX issues_by_project ON issues (project, status);
 CREATE INDEX issues_by_assignee ON issues (assignee_id, status);
+CREATE INDEX issues_by_template ON issues (template, status);
 
 -- `issue` waits for `depends_on` (same project; no cycles).
 CREATE TABLE issue_links (

@@ -922,7 +922,7 @@
     {
       "id": "issues_list",
       "title": "List issues",
-      "description": "List issues, highest priority first. Filters: project, status, assignee (\"me\", \"owner\" or an agent id), goal, ready (todo with every dependency done). Pass the returned cursor to get the next page.",
+      "description": "List issues, highest priority first. Filters: project, status, assignee (\"me\", \"owner\" or an agent id), goal, template, ready (todo with every dependency done). Pass the returned cursor to get the next page.",
       "input": {
         "type": "object",
         "additionalProperties": false,
@@ -966,6 +966,11 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200
+          },
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
           }
         }
       },
@@ -999,7 +1004,8 @@
                 "createdBy",
                 "createdAt",
                 "updatedAt",
-                "completedAt"
+                "completedAt",
+                "template"
               ],
               "properties": {
                 "id": {
@@ -1164,6 +1170,16 @@
                       "type": "null"
                     }
                   ]
+                },
+                "template": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               }
             }
@@ -1236,7 +1252,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -1393,6 +1410,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -1477,7 +1504,7 @@
     {
       "id": "issue_create",
       "title": "Create issue",
-      "description": "Put a piece of work on the board. Default project: your own; default status: todo; default assignee: none. assignee = an agent id, \"me\" or \"owner\". dependsOn = issue ids in the same project that must be done first.",
+      "description": "Put a piece of work on the board. Default project: your own; default status: todo; default assignee: none. assignee = an agent id, \"me\" or \"owner\". dependsOn = issue ids in the same project that must be done first. template = an optional key that marks repeated work (a template or a routine).",
       "input": {
         "type": "object",
         "additionalProperties": false,
@@ -1542,6 +1569,13 @@
               "maxLength": 64
             },
             "maxItems": 20
+          },
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[a-z0-9][a-z0-9._:-]*$",
+            "description": "Optional template key for repeated work (set when the issue comes from a template or a routine), e.g. weekly-report."
           }
         }
       },
@@ -1572,7 +1606,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -1729,6 +1764,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -1850,7 +1895,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -2007,6 +2053,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -2172,7 +2228,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -2329,6 +2386,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -2402,7 +2469,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -2559,6 +2627,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -2632,7 +2710,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -2789,6 +2868,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -2863,7 +2952,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -3020,6 +3110,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -3260,7 +3360,8 @@
                 "createdBy",
                 "createdAt",
                 "updatedAt",
-                "completedAt"
+                "completedAt",
+                "template"
               ],
               "properties": {
                 "id": {
@@ -3417,6 +3518,16 @@
                   "type": "string"
                 },
                 "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "template": {
                   "anyOf": [
                     {
                       "type": "string"
@@ -3451,7 +3562,8 @@
                 "createdBy",
                 "createdAt",
                 "updatedAt",
-                "completedAt"
+                "completedAt",
+                "template"
               ],
               "properties": {
                 "id": {
@@ -3608,6 +3720,16 @@
                   "type": "string"
                 },
                 "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "template": {
                   "anyOf": [
                     {
                       "type": "string"
@@ -3682,7 +3804,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -3839,6 +3962,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -3912,7 +4045,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -4069,6 +4203,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -4256,7 +4400,8 @@
                 "createdBy",
                 "createdAt",
                 "updatedAt",
-                "completedAt"
+                "completedAt",
+                "template"
               ],
               "properties": {
                 "id": {
@@ -4413,6 +4558,16 @@
                   "type": "string"
                 },
                 "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "template": {
                   "anyOf": [
                     {
                       "type": "string"
@@ -4620,7 +4775,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -4777,6 +4933,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -5555,7 +5721,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -5712,6 +5879,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -5842,7 +6019,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -5999,6 +6177,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -6074,7 +6262,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "completedAt"
+              "completedAt",
+              "template"
             ],
             "properties": {
               "id": {
@@ -6231,6 +6420,16 @@
                 "type": "string"
               },
               "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "template": {
                 "anyOf": [
                   {
                     "type": "string"

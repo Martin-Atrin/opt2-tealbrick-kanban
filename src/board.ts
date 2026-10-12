@@ -36,6 +36,8 @@ export interface IssueView {
   ready: boolean;
   assignee: Actor | null;
   goal: string | null;
+  /** optional key for repeated work (a template or a routine); Evolution groups done issues by it */
+  template: string | null;
   dependsOn: string[];
   blockedReason: string | null;
   result: string | null;
@@ -402,6 +404,7 @@ export function toIssue(db: Db, r: Row): IssueView {
     ready: isReady(db, id, String(r.status)),
     assignee: r.assignee_kind ? actorOf(db, r.assignee_kind, r.assignee_id) : null,
     goal: strOrNull(r.goal),
+    template: strOrNull(r.template),
     dependsOn: dependsOn(db, id),
     blockedReason: strOrNull(r.blocked_reason),
     result: strOrNull(r.result),
@@ -427,6 +430,7 @@ export interface IssueFilter {
   status?: Status;
   assignee?: { kind: "agent" | "owner"; id: string };
   goal?: string;
+  template?: string;
   ready?: boolean;
   limit: number;
   cursor?: string;
@@ -447,6 +451,10 @@ export function listIssues(db: Db, f: IssueFilter): { issues: IssueView[]; curso
   if (f.goal) {
     where.push("goal = ?");
     args.push(f.goal);
+  }
+  if (f.template) {
+    where.push("template = ?");
+    args.push(f.template);
   }
   if (f.ready !== undefined) {
     const openDeps = "EXISTS (SELECT 1 FROM issue_links l JOIN issues d ON d.id = l.depends_on WHERE l.issue = issues.id AND d.status <> 'done')";
@@ -507,6 +515,7 @@ export interface IssueInput {
   priority?: Priority;
   assignee?: { kind: "agent" | "owner"; id: string } | null;
   goal?: string | null;
+  template?: string;
   dependsOn?: readonly string[];
 }
 export function createIssue(db: Db, i: IssueInput, actor: Actor, now = Date.now()): IssueView {
@@ -515,9 +524,9 @@ export function createIssue(db: Db, i: IssueInput, actor: Actor, now = Date.now(
   const id = `iss_${ulid(now)}`;
   const status = i.status ?? "todo";
   db.prepare(
-    `INSERT INTO issues (id, project, title, summary, status, priority, assignee_kind, assignee_id, goal, blocked_reason, result,
+    `INSERT INTO issues (id, project, title, summary, status, priority, assignee_kind, assignee_id, goal, template, blocked_reason, result,
        created_by_kind, created_by_id, created_by_name, created_at, updated_at, completed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     i.project,
@@ -528,6 +537,7 @@ export function createIssue(db: Db, i: IssueInput, actor: Actor, now = Date.now(
     i.assignee?.kind ?? null,
     i.assignee?.id ?? null,
     i.goal ?? null,
+    i.template ?? null,
     actor.kind,
     actor.id,
     actor.name,

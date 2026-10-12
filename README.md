@@ -35,6 +35,8 @@ operation id (`src/app.ts`) and plain migrations (`migrations/`).
 - **Names on everything.** The author of every issue, comment and activity entry is the verified caller (agent,
   companion app or the owner), never a free-text label. Assignee = an agent id from the workspace directory, or the
   owner.
+- **`template`** (optional, on `issue_create`, filter on `issues_list`): a stable key for repeated work, so Evolution
+  can group done issues (contract: `issues_list {status: "done", limit: 200}` → `id, title, status, assignee, template`).
 - **`work_next`**: an agent's ready issues and its issues in progress (the target for the coming poll mode).
 - **Deletes are destructive** (`issue_delete`, `goal_delete`, `project_delete`): held for the owner by default.
 - **Knowledge documents** are referenced by id + title only (companion `document_get`, unlocked when Knowledge is

@@ -246,6 +246,7 @@ export const handlers = {
         status: i.status,
         assignee: i.assignee === undefined ? undefined : resolveAssignee(ctx.db, i.assignee, a),
         goal: i.goal,
+        template: i.template,
         ready: i.ready,
         limit: i.limit ?? 50,
         cursor: i.cursor,
