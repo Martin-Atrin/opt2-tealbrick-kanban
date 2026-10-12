@@ -33,7 +33,7 @@ operation id (`src/app.ts`) and plain migrations (`migrations/`).
   when it is `todo` and every issue it depends on (`dependsOn`, same project, no cycles) is `done`. Completing,
   unlinking or deleting a dependency writes a `promoted` activity entry on each issue that becomes ready.
 - **Apps by name.** Issues, comments and activity written by a companion app show "<name> (app)" from the SDK's
-  verified caller name, or "App <instance id>" until the SDK knows the name (spec `companionCallers`, C102).
+  verified caller name, or "App <instance id>" until the SDK knows the name (SDK 0.1.14 names app callers from the verified slice `companionCallers`, C102).
 - **Names on everything.** The author of every issue, comment and activity entry is the verified caller (agent,
   companion app or the owner), never a free-text label. Assignee = an agent id from the workspace directory, or the
   owner.
