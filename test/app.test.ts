@@ -290,28 +290,14 @@ test("QA S3: write ops on a missing issue/goal answer not_found in scope() (befo
   assert.equal(H.issue_get?.scope?.({ issue: "iss_missing" }, a.caller as never), null, "reads keep the handler check (not_found for unreadable too)");
 });
 
-test("QA S2: shared-project access is recorded once per (project, agent); unshare and delete clear the pairs", async () => {
+test("QA S2 (SDK 0.1.13): owner projects are created and re-shared as shared scope instances; no app-side share record", async () => {
   const db = workspace();
   const owner = ctxFor(db, OWNER);
   const p = (await call("board_project_create", { name: "Launch" }, owner)) as any;
-  const priv = (await call("board_project_create", { name: "Private", shared: false }, owner)) as any;
-  let state = (await call("board_share_sync", {}, owner)) as any;
-  assert.deepEqual(state, { shared: [p.project.id], applied: [] });
-  state = (await call(
-    "board_share_sync",
-    {
-      applied: [
-        { project: p.project.id, agent: A.id },
-        { project: priv.project.id, agent: A.id },
-      ],
-    },
-    owner,
-  )) as any;
-  assert.deepEqual(state.applied, [{ project: p.project.id, agent: A.id }], "pairs for unshared projects are not recorded");
+  assert.deepEqual(owner.instances.at(-1), { type: "project", id: p.project.id, label: "Launch", shared: true });
   await call("board_project_update", { project: p.project.id, shared: false }, owner);
-  assert.deepEqual(((await call("board_share_sync", {}, owner)) as any).applied, []);
   await call("board_project_update", { project: p.project.id, shared: true }, owner);
-  await call("board_share_sync", { applied: [{ project: p.project.id, agent: B.id }] }, owner);
-  await call("board_project_delete", { project: p.project.id }, owner);
-  assert.equal(Number(db.prepare("SELECT COUNT(*) AS n FROM share_grants").get()?.n), 0);
+  assert.equal(owner.instances.at(-1)?.shared, true, "re-sharing passes shared: true, so the SDK grants every seen agent");
+  assert.equal(manifest.operations.some((o) => o.id === "board_share_sync"), false);
+  assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name = 'share_grants'").get(), undefined, "migration 0003 drops the table");
 });

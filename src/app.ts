@@ -23,7 +23,6 @@ import {
   type BoardProjectCreateInput,
   type BoardProjectDeleteInput,
   type BoardProjectUpdateInput,
-  type BoardShareSyncInput,
   type BoardViewInput,
   type GoalCreateInput,
   type GoalDeleteInput,
@@ -76,9 +75,7 @@ import {
   OWNER_NAME,
   PROJECT_SCOPE,
   projectRow,
-  recordShareGrants,
   resolveAssignee,
-  shareState,
   toIssue,
   unlinkDocument,
   unlinkIssue,
@@ -443,14 +440,6 @@ export const handlers = {
       tx(ctx, () => deleteProject(ctx.db, i.project));
       await ctx.scopes.instances.create(PROJECT_SCOPE, p.id, `${p.name} (deleted)`.slice(0, 80), { shared: false });
       return { ok: true };
-    },
-  }),
-  [OP.boardShareSync]: op<BoardShareSyncInput, unknown>({
-    async run(i, ctx) {
-      return tx(ctx, () => {
-        recordShareGrants(ctx.db, i.applied ?? []);
-        return shareState(ctx.db);
-      });
     },
   }),
   [OP.boardGoalCreate]: op<BoardGoalCreateInput, unknown>({

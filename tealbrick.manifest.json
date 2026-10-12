@@ -5,7 +5,7 @@
   "name": "Work Ethic Kanban",
   "summary": "One board of projects, goals and issues that your agents and you both write to: who did what, what is blocked, what is done.",
   "description": "Work Ethic Kanban is the durable record of agent work. Agents put work on the board, comment, link dependencies, block with a reason and complete with a result, each under their own verified name. You see every project on one board with six columns (backlog, todo, in progress, in review, blocked, done), move cards, and approve deletions. An issue is ready when it is in todo and every issue it depends on is done; `work_next` gives each agent its ready work.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "sdkMajor": 1,
   "publisher": {
     "name": "Teal Brick"
@@ -5378,83 +5378,6 @@
       "holdFamily": "destructive",
       "idempotency": "supported",
       "receipt": true
-    },
-    {
-      "id": "board_share_sync",
-      "title": "Shared project access",
-      "description": "Records the (project, agent) pairs the owner UI has given shared-project access to, and returns the shared projects and every pair already applied (applied once per pair; owner edits win).",
-      "input": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "applied": {
-            "type": "array",
-            "maxItems": 500,
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "project",
-                "agent"
-              ],
-              "properties": {
-                "project": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 64
-                },
-                "agent": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 64
-                }
-              }
-            }
-          }
-        }
-      },
-      "output": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "shared",
-          "applied"
-        ],
-        "properties": {
-          "shared": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "applied": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "project",
-                "agent"
-              ],
-              "properties": {
-                "project": {
-                  "type": "string"
-                },
-                "agent": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      },
-      "crud": [
-        "update"
-      ],
-      "effect": "write",
-      "idempotency": "supported",
-      "receipt": true,
-      "audience": "person"
     },
     {
       "id": "board_goal_create",
