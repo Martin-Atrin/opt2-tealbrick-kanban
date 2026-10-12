@@ -24,22 +24,39 @@ A Teal Brick opt2 miniapp (product id `kanban`), built on `@opt2-tealbrick/minia
 validation, OpenAPI, receipts, holds, idempotency, scopes, backups and status from it. You write handlers by
 operation id (`src/app.ts`) and plain migrations (`migrations/`).
 
+## What it does
+
+- **Projects, goals, issues.** A project is the scope instance (scope type `project`). Every agent gets its own
+  project on first sight (manifest `needsAgentDirectory`; default grant `own` = read, work and delete); owner
+  projects are `shared` (default grant = read and work). Goals belong to one project; issues may point at one goal.
+- **One status vocabulary**: `backlog`, `todo`, `in_progress`, `in_review`, `blocked`, `done`. An issue is **ready**
+  when it is `todo` and every issue it depends on (`dependsOn`, same project, no cycles) is `done`. Completing,
+  unlinking or deleting a dependency writes a `promoted` activity entry on each issue that becomes ready.
+- **Names on everything.** The author of every issue, comment and activity entry is the verified caller (agent,
+  companion app or the owner), never a free-text label. Assignee = an agent id from the workspace directory, or the
+  owner.
+- **`work_next`**: an agent's ready issues and its issues in progress (the target for the coming poll mode).
+- **Deletes are destructive** (`issue_delete`, `goal_delete`, `project_delete`): held for the owner by default.
+- **Knowledge documents** are referenced by id + title only (companion `document_get`, unlocked when Knowledge is
+  deployed). Kanban never stores document bodies.
+
 ## Layout
 
 | Path | Content |
 |---|---|
 | `tealbrick.manifest.json` | identity, runtime (data + backup volumes), operations, scopes, skills, backups, UI paths |
 | `src/app.ts` | `defineApp`: one typed handler per operation (op ids and I/O types from `#kit`), agent first-sight event |
-| `src/items.ts` | the app's table access (plain functions over the SDK `Db`) |
+| `src/board.ts` | the board store: projects, goals, issues, dependencies (computed `ready`, promotion), comments, document references, activity |
 | `src/main.ts` | `startApp(app, process.env)` |
-| `src/ui/` | React UI (`<TbProvider>` + `<AppShell>` from `@opt2-tealbrick/ui`), built to `dist/ui` |
+| `src/ui/` | owner board (six columns, drag = `board_issue_update`), holds, receipts, agents & scopes, backups & export, inside `<AppShell>`; built to `dist/ui` |
 | `migrations/0001_init.sql` | baseline; forward-only, never edit a released file |
-| `skills/use-kanban/SKILL.md` | the agent skill (frontmatter `name`, `description`) |
+| `skills/use-kanban/SKILL.md` | the agent skill: when to use the board, how to log, block, complete and split work |
 | `scripts/build-ui.ts` | UI build without a bundler (tsc output + vendored modules + import map) |
 | `gen/` (not committed) | `tb-gen` output; `node --run kit` generates the kit and compiles it to `dist/kit` (`#kit` import) |
 | `Dockerfile` | `node:24-slim` pinned by digest, pnpm build to `dist/`, non-root, `CMD ["node", "dist/main.js"]` |
 | `.woodpecker/ci.yaml` | the opt2 CI template, byte-identical copy (do not edit) |
 | `tealbrick-ci.json` | CI settings: kind `miniapp`, one image |
+| `test/` | store rules (`board.test.ts`) and app/handler checks incl. the J2 flow (`app.test.ts`) |
 
 ## Develop
 

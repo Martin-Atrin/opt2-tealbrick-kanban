@@ -3,112 +3,6477 @@
   "schema": "tealbrick.miniapp/2",
   "id": "kanban",
   "name": "Work Ethic Kanban",
-  "summary": "Work Ethic Kanban keeps short items in collections that your agents can list and add to.",
+  "summary": "One board of projects, goals and issues that your agents and you both write to: who did what, what is blocked, what is done.",
+  "description": "Work Ethic Kanban is the durable record of agent work. Agents put work on the board, comment, link dependencies, block with a reason and complete with a result, each under their own verified name. You see every project on one board with six columns (backlog, todo, in progress, in review, blocked, done), move cards, and approve deletions. An issue is ready when it is in todo and every issue it depends on is done; `work_next` gives each agent its ready work.",
   "version": "0.1.0",
   "sdkMajor": 1,
-  "publisher": { "name": "Work Ethic Kanban authors" },
-  "source": { "repo": "https://github.com/Martin-Atrin/opt2-tealbrick-kanban", "license": "MIT" },
-  "icon": { "svgPath": "M4 5h16v14H4z M8 9h8 M8 13h8 M8 17h5", "viewBox": "0 0 24 24" },
+  "publisher": {
+    "name": "Teal Brick"
+  },
+  "source": {
+    "repo": "https://github.com/Martin-Atrin/opt2-tealbrick-kanban",
+    "license": "MIT"
+  },
+  "icon": {
+    "svgPath": "M3 4h5v16H3z M10 4h5v10h-5z M17 4h4v6h-4z",
+    "viewBox": "0 0 24 24"
+  },
   "discovery": {
-    "category": "productivity",
-    "intents": ["keep a list of items", "add an item to my collection", "list my items"],
-    "keywords": ["items", "list", "collection"]
+    "category": "operations",
+    "intents": [
+      "see what my agents are doing",
+      "kanban board for agents",
+      "track agent work",
+      "task board",
+      "project board",
+      "issue tracker for agents",
+      "who is working on what",
+      "what is blocked",
+      "hand over work between agents",
+      "plan work with goals",
+      "task dependencies",
+      "agent work log"
+    ],
+    "keywords": [
+      "kanban",
+      "board",
+      "issues",
+      "tasks",
+      "projects",
+      "goals",
+      "dependencies",
+      "work log",
+      "handover"
+    ]
   },
   "runtime": {
-    "build": { "context": ".", "dockerfile": "Dockerfile" },
+    "build": {
+      "context": ".",
+      "dockerfile": "Dockerfile"
+    },
     "port": 8080,
     "healthPath": "/tb/v1/health",
-    "resources": { "cpu": 0.25, "memoryMb": 256 },
+    "resources": {
+      "cpu": 0.25,
+      "memoryMb": 256
+    },
     "volumes": [
-      { "id": "data", "mountPath": "/data", "sizeGb": 1, "purpose": "data" },
-      { "id": "backup", "mountPath": "/backup", "sizeGb": 2, "purpose": "backup" }
+      {
+        "id": "data",
+        "mountPath": "/data",
+        "sizeGb": 1,
+        "purpose": "data"
+      },
+      {
+        "id": "backup",
+        "mountPath": "/backup",
+        "sizeGb": 2,
+        "purpose": "backup"
+      }
     ]
   },
   "operations": [
     {
-      "id": "items_list",
-      "title": "List items",
-      "description": "List the newest items in one collection, or in every collection the caller may read.",
+      "id": "projects_list",
+      "title": "List projects",
+      "description": "List the board projects you may read (board projects, not folders on disk), with issue counts per column. Your own project is marked by ownerAgent = your id.",
       "input": {
         "type": "object",
         "additionalProperties": false,
-        "properties": {
-          "collection": { "type": "string", "minLength": 1, "maxLength": 64 },
-          "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
-        }
+        "properties": {}
       },
       "output": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["items"],
+        "required": [
+          "projects"
+        ],
         "properties": {
-          "items": {
+          "projects": {
             "type": "array",
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["id", "collection", "title", "createdAt"],
+              "required": [
+                "id",
+                "name",
+                "summary",
+                "shared",
+                "ownerAgent",
+                "counts",
+                "createdAt",
+                "updatedAt"
+              ],
               "properties": {
-                "id": { "type": "string" },
-                "collection": { "type": "string" },
-                "title": { "type": "string" },
-                "createdAt": { "type": "string" }
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "shared": {
+                  "type": "boolean"
+                },
+                "ownerAgent": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "counts": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "backlog",
+                    "todo",
+                    "in_progress",
+                    "in_review",
+                    "blocked",
+                    "done"
+                  ],
+                  "properties": {
+                    "backlog": {
+                      "type": "integer"
+                    },
+                    "todo": {
+                      "type": "integer"
+                    },
+                    "in_progress": {
+                      "type": "integer"
+                    },
+                    "in_review": {
+                      "type": "integer"
+                    },
+                    "blocked": {
+                      "type": "integer"
+                    },
+                    "done": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
               }
             }
           }
         }
       },
-      "crud": ["read"],
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "read"
+      ],
       "effect": "read",
-      "scopeType": "collection",
       "idempotency": "none",
-      "receipt": false,
-      "audience": "agent"
+      "receipt": false
     },
     {
-      "id": "item_create",
-      "title": "Create item",
-      "description": "Add an item to a collection the caller may write to (default: the caller's own collection).",
+      "id": "project_get",
+      "title": "Get project",
+      "description": "One project with its goals and issue counts per column.",
       "input": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["title"],
+        "required": [
+          "project"
+        ],
         "properties": {
-          "collection": { "type": "string", "minLength": 1, "maxLength": 64 },
-          "title": { "type": "string", "minLength": 1, "maxLength": 200 }
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
         }
       },
       "output": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "collection"],
+        "required": [
+          "project",
+          "goals"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "collection": { "type": "string" }
+          "project": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "summary",
+              "shared",
+              "ownerAgent",
+              "counts",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "shared": {
+                "type": "boolean"
+              },
+              "ownerAgent": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "counts": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ],
+                "properties": {
+                  "backlog": {
+                    "type": "integer"
+                  },
+                  "todo": {
+                    "type": "integer"
+                  },
+                  "in_progress": {
+                    "type": "integer"
+                  },
+                  "in_review": {
+                    "type": "integer"
+                  },
+                  "blocked": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "title",
+                "summary",
+                "horizon",
+                "status",
+                "issues",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "horizon": {
+                  "type": "string",
+                  "enum": [
+                    "short",
+                    "medium",
+                    "long"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "done"
+                  ]
+                },
+                "issues": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "total",
+                    "done"
+                  ],
+                  "properties": {
+                    "total": {
+                      "type": "integer"
+                    },
+                    "done": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       },
-      "crud": ["create"],
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "project_update",
+      "title": "Update project",
+      "description": "Rename a project or change its summary.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "summary",
+              "shared",
+              "ownerAgent",
+              "counts",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "shared": {
+                "type": "boolean"
+              },
+              "ownerAgent": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "counts": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ],
+                "properties": {
+                  "backlog": {
+                    "type": "integer"
+                  },
+                  "todo": {
+                    "type": "integer"
+                  },
+                  "in_progress": {
+                    "type": "integer"
+                  },
+                  "in_review": {
+                    "type": "integer"
+                  },
+                  "blocked": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
       "effect": "write",
-      "scopeType": "collection",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "project_delete",
+      "title": "Delete project",
+      "description": "Delete a project with all its goals, issues, comments and activity. Held for the owner's approval by default.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "delete"
+      ],
+      "effect": "destructive",
+      "holdFamily": "destructive",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "goals_list",
+      "title": "List goals",
+      "description": "List goals in one project, or in every project you may read.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "done"
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goals"
+        ],
+        "properties": {
+          "goals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "title",
+                "summary",
+                "horizon",
+                "status",
+                "issues",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "horizon": {
+                  "type": "string",
+                  "enum": [
+                    "short",
+                    "medium",
+                    "long"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "done"
+                  ]
+                },
+                "issues": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "total",
+                    "done"
+                  ],
+                  "properties": {
+                    "total": {
+                      "type": "integer"
+                    },
+                    "done": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "goal_create",
+      "title": "Create goal",
+      "description": "Create a goal (an outcome that issues work towards) in a project. Default project: your own.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "horizon": {
+            "type": "string",
+            "enum": [
+              "short",
+              "medium",
+              "long"
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal"
+        ],
+        "properties": {
+          "goal": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "horizon",
+              "status",
+              "issues",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "horizon": {
+                "type": "string",
+                "enum": [
+                  "short",
+                  "medium",
+                  "long"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "done"
+                ]
+              },
+              "issues": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "total",
+                  "done"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "create"
+      ],
+      "effect": "write",
       "idempotency": "required",
-      "receipt": true,
-      "audience": "agent"
+      "receipt": true
+    },
+    {
+      "id": "goal_update",
+      "title": "Update goal",
+      "description": "Change a goal's title, summary, horizon or status (active or done).",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal"
+        ],
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "horizon": {
+            "type": "string",
+            "enum": [
+              "short",
+              "medium",
+              "long"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "done"
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal"
+        ],
+        "properties": {
+          "goal": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "horizon",
+              "status",
+              "issues",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "horizon": {
+                "type": "string",
+                "enum": [
+                  "short",
+                  "medium",
+                  "long"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "done"
+                ]
+              },
+              "issues": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "total",
+                  "done"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "goal_delete",
+      "title": "Delete goal",
+      "description": "Delete a goal. Its issues stay and lose the goal link. Held for the owner's approval by default.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal"
+        ],
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "delete"
+      ],
+      "effect": "destructive",
+      "holdFamily": "destructive",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "issues_list",
+      "title": "List issues",
+      "description": "List issues, highest priority first. Filters: project, status, assignee (\"me\", \"owner\" or an agent id), goal, ready (todo with every dependency done). Pass the returned cursor to get the next page.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "todo",
+              "in_progress",
+              "in_review",
+              "blocked",
+              "done"
+            ]
+          },
+          "assignee": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "An agent id (agt_…) from the workspace directory, \"me\", or \"owner\"."
+          },
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issues",
+          "cursor"
+        ],
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "title",
+                "summary",
+                "status",
+                "priority",
+                "ready",
+                "assignee",
+                "goal",
+                "dependsOn",
+                "blockedReason",
+                "result",
+                "documents",
+                "createdBy",
+                "createdAt",
+                "updatedAt",
+                "completedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "backlog",
+                    "todo",
+                    "in_progress",
+                    "in_review",
+                    "blocked",
+                    "done"
+                  ]
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "ready": {
+                  "type": "boolean",
+                  "description": "status is todo and every dependency is done"
+                },
+                "assignee": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "id",
+                        "name"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "agent",
+                            "owner",
+                            "app"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "goal": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dependsOn": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "blockedReason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "documents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "createdBy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                },
+                "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "issue_get",
+      "title": "Get issue",
+      "description": "One issue with its dependencies, the issues that depend on it, and its comments (oldest first). Read it before you start work on an issue.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "dependents",
+          "comments"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "dependents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "issue",
+                "author",
+                "body",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "issue": {
+                  "type": "string"
+                },
+                "author": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "body": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "issue_create",
+      "title": "Create issue",
+      "description": "Put a piece of work on the board. Default project: your own; default status: todo; default assignee: none. assignee = an agent id, \"me\" or \"owner\". dependsOn = issue ids in the same project that must be done first.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "todo",
+              "in_progress"
+            ]
+          },
+          "assignee": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "An agent id (agt_…) from the workspace directory, \"me\", or \"owner\"."
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "maxItems": 20
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "create"
+      ],
+      "effect": "write",
+      "idempotency": "required",
+      "receipt": true
+    },
+    {
+      "id": "issue_update",
+      "title": "Update issue",
+      "description": "Change an issue: title, summary, status (backlog, todo, in_progress, in_review, blocked, done), priority, assignee (agent id, \"me\", \"owner\", or null to clear) or goal (null to clear). Use issue_block and issue_complete for blocked and done when you have a reason or a result.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "todo",
+              "in_progress",
+              "in_review",
+              "blocked",
+              "done"
+            ]
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "An agent id (agt_…) from the workspace directory, \"me\", or \"owner\"."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "issue_comment_add",
+      "title": "Comment on issue",
+      "description": "Add a durable note to an issue: a finding, a decision, a question or a handover for the next worker. The author is you (verified), never a label.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "body"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "comment"
+        ],
+        "properties": {
+          "comment": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "issue",
+              "author",
+              "body",
+              "createdAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "issue": {
+                "type": "string"
+              },
+              "author": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "create"
+      ],
+      "effect": "write",
+      "idempotency": "required",
+      "receipt": true
+    },
+    {
+      "id": "issue_link",
+      "title": "Add dependency",
+      "description": "Record that issue must wait for dependsOn (same project). When every dependency is done, a todo issue becomes ready. Cycles are refused.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "dependsOn"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "dependsOn": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "issue_unlink",
+      "title": "Remove dependency",
+      "description": "Remove a dependency between two issues.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "dependsOn"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "dependsOn": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "issue_block",
+      "title": "Block issue",
+      "description": "Move an issue to blocked with a reason that names the decision or input you need (one or two sentences). Put long context in a comment first.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "reason"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "issue_complete",
+      "title": "Complete issue",
+      "description": "Move an issue to done with a short result (what shipped, where it is). Issues that depend on it become ready when all their dependencies are done. Never complete work you did not finish: block it instead.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "result"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "result": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "promoted"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "promoted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "issue_delete",
+      "title": "Delete issue",
+      "description": "Delete an issue with its comments and activity. Held for the owner's approval by default.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "delete"
+      ],
+      "effect": "destructive",
+      "holdFamily": "destructive",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "activity_list",
+      "title": "List activity",
+      "description": "The activity log (who did what, newest first) for one issue, one project, or every project you may read.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "activity",
+          "cursor"
+        ],
+        "properties": {
+          "activity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "issue",
+                "actor",
+                "kind",
+                "summary",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "issue": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "actor": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "work_next",
+      "title": "Next work for me",
+      "description": "Issues assigned to you that are ready to start (todo, every dependency done), highest priority first, plus the ones you already have in progress.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ready",
+          "inProgress"
+        ],
+        "properties": {
+          "ready": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "title",
+                "summary",
+                "status",
+                "priority",
+                "ready",
+                "assignee",
+                "goal",
+                "dependsOn",
+                "blockedReason",
+                "result",
+                "documents",
+                "createdBy",
+                "createdAt",
+                "updatedAt",
+                "completedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "backlog",
+                    "todo",
+                    "in_progress",
+                    "in_review",
+                    "blocked",
+                    "done"
+                  ]
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "ready": {
+                  "type": "boolean",
+                  "description": "status is todo and every dependency is done"
+                },
+                "assignee": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "id",
+                        "name"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "agent",
+                            "owner",
+                            "app"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "goal": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dependsOn": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "blockedReason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "documents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "createdBy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                },
+                "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "inProgress": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "title",
+                "summary",
+                "status",
+                "priority",
+                "ready",
+                "assignee",
+                "goal",
+                "dependsOn",
+                "blockedReason",
+                "result",
+                "documents",
+                "createdBy",
+                "createdAt",
+                "updatedAt",
+                "completedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "backlog",
+                    "todo",
+                    "in_progress",
+                    "in_review",
+                    "blocked",
+                    "done"
+                  ]
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "ready": {
+                  "type": "boolean",
+                  "description": "status is todo and every dependency is done"
+                },
+                "assignee": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "id",
+                        "name"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "agent",
+                            "owner",
+                            "app"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "goal": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dependsOn": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "blockedReason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "documents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "createdBy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                },
+                "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "issue_document_link",
+      "title": "Link a document",
+      "description": "Attach a Knowledge document to an issue by its id. Kanban stores only the document id and title, never the body.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "document"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "document": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "issue_document_unlink",
+      "title": "Unlink a document",
+      "description": "Remove a document reference from an issue.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "document"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "document": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "agent",
+      "scopeType": "project",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "board_view",
+      "title": "Board",
+      "description": "Projects, the workspace agent directory, and one project: its issues (all columns), goals and recent activity.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "projects",
+          "agents",
+          "project",
+          "issues",
+          "goals",
+          "activity"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "name",
+                "summary",
+                "shared",
+                "ownerAgent",
+                "counts",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "shared": {
+                  "type": "boolean"
+                },
+                "ownerAgent": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "counts": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "backlog",
+                    "todo",
+                    "in_progress",
+                    "in_review",
+                    "blocked",
+                    "done"
+                  ],
+                  "properties": {
+                    "backlog": {
+                      "type": "integer"
+                    },
+                    "todo": {
+                      "type": "integer"
+                    },
+                    "in_progress": {
+                      "type": "integer"
+                    },
+                    "in_review": {
+                      "type": "integer"
+                    },
+                    "blocked": {
+                      "type": "integer"
+                    },
+                    "done": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "name",
+                "mode",
+                "active"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "active": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "title",
+                "summary",
+                "status",
+                "priority",
+                "ready",
+                "assignee",
+                "goal",
+                "dependsOn",
+                "blockedReason",
+                "result",
+                "documents",
+                "createdBy",
+                "createdAt",
+                "updatedAt",
+                "completedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "backlog",
+                    "todo",
+                    "in_progress",
+                    "in_review",
+                    "blocked",
+                    "done"
+                  ]
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "ready": {
+                  "type": "boolean",
+                  "description": "status is todo and every dependency is done"
+                },
+                "assignee": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "id",
+                        "name"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "agent",
+                            "owner",
+                            "app"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "goal": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dependsOn": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "blockedReason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "documents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "createdBy": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                },
+                "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "title",
+                "summary",
+                "horizon",
+                "status",
+                "issues",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "horizon": {
+                  "type": "string",
+                  "enum": [
+                    "short",
+                    "medium",
+                    "long"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "done"
+                  ]
+                },
+                "issues": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "total",
+                    "done"
+                  ],
+                  "properties": {
+                    "total": {
+                      "type": "integer"
+                    },
+                    "done": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "activity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "issue",
+                "actor",
+                "kind",
+                "summary",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "issue": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "actor": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "board_issue",
+      "title": "Issue detail",
+      "description": "One issue with comments and activity.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "dependents",
+          "comments",
+          "activity"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "dependents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "issue",
+                "author",
+                "body",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "issue": {
+                  "type": "string"
+                },
+                "author": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "body": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "activity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "project",
+                "issue",
+                "actor",
+                "kind",
+                "summary",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "issue": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "actor": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "agent",
+                        "owner",
+                        "app"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "read"
+      ],
+      "effect": "read",
+      "idempotency": "none",
+      "receipt": false
+    },
+    {
+      "id": "board_project_create",
+      "title": "New project",
+      "description": "Create a project. Shared projects are offered to agents through the shared default grant.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "shared": {
+            "type": "boolean"
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "summary",
+              "shared",
+              "ownerAgent",
+              "counts",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "shared": {
+                "type": "boolean"
+              },
+              "ownerAgent": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "counts": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ],
+                "properties": {
+                  "backlog": {
+                    "type": "integer"
+                  },
+                  "todo": {
+                    "type": "integer"
+                  },
+                  "in_progress": {
+                    "type": "integer"
+                  },
+                  "in_review": {
+                    "type": "integer"
+                  },
+                  "blocked": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "create"
+      ],
+      "effect": "write",
+      "idempotency": "required",
+      "receipt": true
+    },
+    {
+      "id": "board_project_update",
+      "title": "Edit project",
+      "description": "Rename a project, change its summary or whether it is shared.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "shared": {
+            "type": "boolean"
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "summary",
+              "shared",
+              "ownerAgent",
+              "counts",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "shared": {
+                "type": "boolean"
+              },
+              "ownerAgent": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "counts": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ],
+                "properties": {
+                  "backlog": {
+                    "type": "integer"
+                  },
+                  "todo": {
+                    "type": "integer"
+                  },
+                  "in_progress": {
+                    "type": "integer"
+                  },
+                  "in_review": {
+                    "type": "integer"
+                  },
+                  "blocked": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "board_project_delete",
+      "title": "Delete project",
+      "description": "Delete a project with all its goals, issues, comments and activity.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "delete"
+      ],
+      "effect": "destructive",
+      "holdFamily": "destructive",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "board_goal_create",
+      "title": "New goal",
+      "description": "Create a goal in a project.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project",
+          "title"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "horizon": {
+            "type": "string",
+            "enum": [
+              "short",
+              "medium",
+              "long"
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal"
+        ],
+        "properties": {
+          "goal": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "horizon",
+              "status",
+              "issues",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "horizon": {
+                "type": "string",
+                "enum": [
+                  "short",
+                  "medium",
+                  "long"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "done"
+                ]
+              },
+              "issues": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "total",
+                  "done"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "create"
+      ],
+      "effect": "write",
+      "idempotency": "required",
+      "receipt": true
+    },
+    {
+      "id": "board_goal_update",
+      "title": "Edit goal",
+      "description": "Change a goal.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal"
+        ],
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "horizon": {
+            "type": "string",
+            "enum": [
+              "short",
+              "medium",
+              "long"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "done"
+            ]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal"
+        ],
+        "properties": {
+          "goal": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "horizon",
+              "status",
+              "issues",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "horizon": {
+                "type": "string",
+                "enum": [
+                  "short",
+                  "medium",
+                  "long"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "done"
+                ]
+              },
+              "issues": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "total",
+                  "done"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "done": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "board_issue_create",
+      "title": "New issue",
+      "description": "Create an issue in a project.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project",
+          "title"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "todo",
+              "in_progress",
+              "in_review",
+              "blocked",
+              "done"
+            ]
+          },
+          "assignee": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "An agent id (agt_…) from the workspace directory, \"me\", or \"owner\"."
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "maxItems": 20
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "create"
+      ],
+      "effect": "write",
+      "idempotency": "required",
+      "receipt": true
+    },
+    {
+      "id": "board_issue_update",
+      "title": "Edit or move issue",
+      "description": "Change an issue; dragging a card to another column changes its status.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 4000
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "todo",
+              "in_progress",
+              "in_review",
+              "blocked",
+              "done"
+            ]
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "An agent id (agt_…) from the workspace directory, \"me\", or \"owner\"."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blockedReason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "result": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "board_issue_link",
+      "title": "Edit dependency",
+      "description": "Add or remove a dependency between two issues of one project.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "dependsOn"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "dependsOn": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "remove": {
+            "type": "boolean"
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "project",
+              "title",
+              "summary",
+              "status",
+              "priority",
+              "ready",
+              "assignee",
+              "goal",
+              "dependsOn",
+              "blockedReason",
+              "result",
+              "documents",
+              "createdBy",
+              "createdAt",
+              "updatedAt",
+              "completedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "in_review",
+                  "blocked",
+                  "done"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "ready": {
+                "type": "boolean",
+                "description": "status is todo and every dependency is done"
+              },
+              "assignee": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "id",
+                      "name"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent",
+                          "owner",
+                          "app"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "goal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blockedReason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "createdBy": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "update"
+      ],
+      "effect": "write",
+      "idempotency": "supported",
+      "receipt": true
+    },
+    {
+      "id": "board_comment_add",
+      "title": "Comment",
+      "description": "Add an owner comment to an issue.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "body"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "comment"
+        ],
+        "properties": {
+          "comment": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "issue",
+              "author",
+              "body",
+              "createdAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "issue": {
+                "type": "string"
+              },
+              "author": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "owner",
+                      "app"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "create"
+      ],
+      "effect": "write",
+      "idempotency": "required",
+      "receipt": true
+    },
+    {
+      "id": "board_issue_delete",
+      "title": "Delete issue",
+      "description": "Delete an issue with its comments and activity.",
+      "input": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue"
+        ],
+        "properties": {
+          "issue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "audience": "person",
+      "crud": [
+        "delete"
+      ],
+      "effect": "destructive",
+      "holdFamily": "destructive",
+      "idempotency": "supported",
+      "receipt": true
     }
   ],
   "scopes": [
     {
-      "type": "collection",
-      "label": "Collection",
-      "labelPlural": "Collections",
+      "type": "project",
+      "label": "Project",
+      "labelPlural": "Projects",
       "access": [
-        { "id": "read", "label": "Read", "crud": ["read"] },
-        { "id": "read_write", "label": "Read and add", "crud": ["read", "create"] }
+        {
+          "id": "read",
+          "label": "Read",
+          "crud": [
+            "read"
+          ]
+        },
+        {
+          "id": "contribute",
+          "label": "Read and work",
+          "crud": [
+            "read",
+            "create",
+            "update"
+          ]
+        },
+        {
+          "id": "manage",
+          "label": "Read, work and delete",
+          "crud": [
+            "read",
+            "create",
+            "update",
+            "delete"
+          ]
+        }
       ],
-      "defaultGrants": [{ "kind": "own", "access": "read_write" }],
-      "summaryTemplate": "{count} {labelPlural} ({access.read_write} writable)"
+      "defaultGrants": [
+        {
+          "kind": "own",
+          "access": "manage"
+        },
+        {
+          "kind": "shared",
+          "access": "contribute"
+        }
+      ],
+      "summaryTemplate": "{count} {labelPlural} ({access.contribute} shared)"
     }
   ],
-  "skills": [{ "id": "use-kanban", "title": "How to use Work Ethic Kanban", "file": "skills/use-kanban/SKILL.md" }],
-  "backups": { "schedule": "30 2 * * *", "retain": 7 },
-  "ui": { "launchPath": "/", "configurePath": "/configure" }
+  "companions": [
+    {
+      "product": "knowledge",
+      "operations": [
+        "document_get"
+      ],
+      "crud": [
+        "read"
+      ],
+      "purpose": "Reads a document's title when an agent links a Knowledge document to an issue. Kanban keeps only the id and title."
+    }
+  ],
+  "unlocks": [
+    {
+      "id": "knowledge_documents",
+      "title": "Link Knowledge documents to issues",
+      "requires": "knowledge",
+      "provides": {
+        "operations": [
+          "issue_document_link",
+          "issue_document_unlink"
+        ]
+      }
+    }
+  ],
+  "needsAgentDirectory": true,
+  "skills": [
+    {
+      "id": "use-kanban",
+      "title": "How to log work on the board",
+      "file": "skills/use-kanban/SKILL.md"
+    }
+  ],
+  "harnessHints": [
+    {
+      "harness": "generic",
+      "instructions": "Log multi-step work on the Kanban board: call kanban__work_next at the start, kanban__issue_get before you start an issue, comment durable findings, then kanban__issue_complete with a result or kanban__issue_block with a specific question. Projects are board projects, not folders."
+    }
+  ],
+  "backups": {
+    "schedule": "41 2 * * *",
+    "retain": 14
+  },
+  "ui": {
+    "launchPath": "/",
+    "configurePath": "/configure"
+  }
 }

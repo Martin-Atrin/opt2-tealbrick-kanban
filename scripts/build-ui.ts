@@ -1,4 +1,4 @@
-// UI build without a bundler. `tsc -p tsconfig.build.json` has emitted src/ui as ES modules to dist/ui; this script
+// UI build without a bundler (template create-tealbrick-miniapp 0.1.5; Kanban adds src/ui/app.css). `tsc -p tsconfig.build.json` has emitted src/ui as ES modules to dist/ui; this script
 // copies the browser dependencies next to it and writes dist/ui/index.html with an import map:
 // - ES module packages (@opt2-tealbrick/ui, @opt2-tealbrick/miniapp-sdk/client, ...) are copied file by file, only
 //   the files reachable from dist/ui/main.js;
@@ -136,6 +136,12 @@ const links = STYLES.map((s) => {
   const file = realpathSync(requireFrom(join(root, "package.json")).resolve(s));
   return `<link rel="stylesheet" href="${urlOf(vendorPath(file))}" />`;
 });
+// the app's own stylesheet (Kanban: board layout), after the design-system sheets so it can use their tokens
+const appCss = join(root, "src", "ui", "app.css");
+if (existsSync(appCss)) {
+  copyFileSync(appCss, join(out, "app.css"));
+  links.push(`<link rel="stylesheet" href="./app.css" />`);
+}
 const html = readFileSync(join(root, "src", "ui", "index.html"), "utf8");
 const marker = /<!-- tb:head[^>]*-->/;
 if (!marker.test(html)) fail("src/ui/index.html has no <!-- tb:head --> marker");
