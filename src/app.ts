@@ -88,14 +88,6 @@ import {
 export const manifest = JSON.parse(readFileSync(new URL("../tealbrick.manifest.json", import.meta.url), "utf8")) as AppDefinition["manifest"];
 export const migrationsDir = fileURLToPath(new URL("../migrations", import.meta.url));
 
-/** The one companion (Knowledge document lookup): product and op are manifest data, never code literals. */
-const DOC_COMPANION = (() => {
-  const c = manifest.companions?.[0];
-  const op = c?.operations[0];
-  if (!c || !op) throw new Error("manifest declares no companion operation");
-  return { product: c.product, op };
-})();
-
 /** Typed handler. The SDK validates `input` against the manifest schema before `run` and the output after it. */
 function op<I, O>(spec: HandlerSpec<I, O>): HandlerSpec {
   return spec as unknown as HandlerSpec;
@@ -145,13 +137,6 @@ async function readable(ctx: OpContext, project?: string): Promise<string[]> {
 const ownOr = (project: string | undefined, caller: { id: string }) => project ?? caller.id;
 const assignee = (ctx: OpContext, a: string | null | undefined, who: Actor) =>
   a === undefined ? undefined : a === null ? null : resolveAssignee(ctx.db, a, who);
-
-async function readDocTitle(ctx: OpContext, document: string): Promise<string> {
-  const r = await ctx.callApp<Record<string, unknown>>(DOC_COMPANION.product, DOC_COMPANION.op, { id: document });
-  if (r.status !== "ok") throw new TbError("document_lookup_held", "the document lookup is waiting for the owner's approval; try again later", 409);
-  const title = r.output && typeof r.output === "object" ? (r.output as Record<string, unknown>).title : undefined;
-  return typeof title === "string" && title.trim() ? title.trim().slice(0, 200) : document;
-}
 
 const sayIssue = (i: { issue: string }) => `issue ${i.issue}`;
 
@@ -370,8 +355,8 @@ export const handlers = {
     async run(i, ctx) {
       const a = prepare(ctx);
       await needIssue(ctx, i.issue, "update");
-      const title = await readDocTitle(ctx, i.document);
-      return { issue: tx(ctx, () => linkDocument(ctx.db, i.issue, { id: i.document, title }, a)) };
+      // C88: the agent supplies the title (it read the document with its own grant); Kanban never reads Knowledge for it.
+      return { issue: tx(ctx, () => linkDocument(ctx.db, i.issue, { id: i.document, title: i.title.trim() }, a)) };
     },
   }),
   [OP.issueDocumentUnlink]: op<IssueDocumentUnlinkInput, unknown>({

@@ -56,7 +56,6 @@ test("manifest shape: 6-column status vocabulary, deletes destructive, creates i
     ["own", "shared"],
   );
   assert.equal(manifest.needsAgentDirectory, true);
-  assert.deepEqual(manifest.companions?.[0]?.operations, ["document_get"]);
 });
 
 test("boots on the SDK, serves derived routes, refuses agent ops without a bridge", async (t) => {
@@ -194,25 +193,18 @@ test("owner projects: shared flag goes to the scope instance; deleting keeps no 
   assert.match(owner.instances.at(-1)?.label ?? "", /\(deleted\)$/);
 });
 
-test("document references: title via the Knowledge companion (product/op from the manifest); never the body", async () => {
+test("document references (C88): id + title supplied by the agent; Kanban never calls Knowledge", async () => {
   const db = workspace();
   upsertAgent(db, { id: A.id, name: A.name, mode: "free" });
-  const calls: unknown[] = [];
-  const companion = manifest.companions?.[0];
-  const a = ctxFor(db, A, { [A.id]: CRUD.manage }, (async (product: string, op: string, input: unknown) => {
-    calls.push([product, op, input]);
-    return { status: "ok", output: { id: "doc_1", title: "Launch plan", body: "SECRET BODY" } };
+  const a = ctxFor(db, A, { [A.id]: CRUD.manage }, (async () => {
+    throw new Error("Kanban must not call another app");
   }) as never);
   const i = (await call("issue_create", { title: "t" }, a)) as any;
-  const linked = (await call("issue_document_link", { issue: i.issue.id, document: "doc_1" }, a)) as any;
-  assert.deepEqual(calls, [[companion?.product, "document_get", { id: "doc_1" }]]);
+  const linked = (await call("issue_document_link", { issue: i.issue.id, document: "doc_1", title: " Launch plan " }, a)) as any;
   assert.deepEqual(linked.issue.documents, [{ id: "doc_1", title: "Launch plan" }]);
-  assert.doesNotMatch(JSON.stringify(db.prepare("SELECT * FROM issue_documents").all()), /SECRET BODY/);
   const un = (await call("issue_document_unlink", { issue: i.issue.id, document: "doc_1" }, a)) as any;
   assert.deepEqual(un.issue.documents, []);
-
-  const held = ctxFor(db, A, { [A.id]: CRUD.manage }, (async () => ({ status: "held", holdId: "hld_1", expiresAt: "x" })) as never);
-  await assert.rejects(call("issue_document_link", { issue: i.issue.id, document: "doc_2" }, held), { code: "document_lookup_held" });
+  assert.equal(manifest.companions, undefined, "no companion grants in 0.1");
 });
 
 test("an app caller (companion grant) gets its own project and can log issues; it cannot be 'me'", async () => {

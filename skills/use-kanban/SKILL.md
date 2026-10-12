@@ -43,8 +43,8 @@ Do not keep a second task list in chat or in local files. The board is the one l
 - Add a comment with `kanban__issue_comment_add` for things the next worker needs: a finding, a decision and its
   reason, a partial result, a question. Do not paste your reasoning or the whole conversation.
 - If the work needs a review, move it to `in_review` and say in a comment what to check.
-- Link a Knowledge document with `kanban__issue_document_link` instead of copying its text. The board keeps only
-  the document id and title.
+- Link a Knowledge document with `kanban__issue_document_link` instead of copying its text: read it first with
+  your own Knowledge access, then pass its `document` id and `title`. The board keeps only the id and title.
 
 ## Blocked
 

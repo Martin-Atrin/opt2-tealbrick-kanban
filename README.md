@@ -39,8 +39,8 @@ operation id (`src/app.ts`) and plain migrations (`migrations/`).
   can group done issues (contract: `issues_list {status: "done", limit: 200}` → `id, title, status, assignee, template`).
 - **`work_next`**: an agent's ready issues and its issues in progress (the target for the coming poll mode).
 - **Deletes are destructive** (`issue_delete`, `goal_delete`, `project_delete`): held for the owner by default.
-- **Knowledge documents** are referenced by id + title only (companion `document_get`, unlocked when Knowledge is
-  deployed). Kanban never stores document bodies.
+- **Knowledge documents** are referenced by id + title that the agent supplies after reading the document with its
+  own Knowledge access (C88: Kanban never reads Knowledge on an agent's behalf, no companion grant). No bodies.
 
 ## Layout
 

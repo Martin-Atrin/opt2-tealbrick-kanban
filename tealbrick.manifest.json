@@ -3756,13 +3756,14 @@
     {
       "id": "issue_document_link",
       "title": "Link a document",
-      "description": "Attach a Knowledge document to an issue by its id. Kanban stores only the document id and title, never the body.",
+      "description": "Attach a Knowledge document to an issue by its id and title. Read the document yourself first (with your own Knowledge access); Kanban stores only the id and title you give, never the body, and never reads Knowledge for you.",
       "input": {
         "type": "object",
         "additionalProperties": false,
         "required": [
           "issue",
-          "document"
+          "document",
+          "title"
         ],
         "properties": {
           "issue": {
@@ -3774,6 +3775,11 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
           }
         }
       },
@@ -6626,31 +6632,6 @@
         }
       ],
       "summaryTemplate": "{count} {labelPlural} ({access.contribute} shared)"
-    }
-  ],
-  "companions": [
-    {
-      "product": "knowledge",
-      "operations": [
-        "document_get"
-      ],
-      "crud": [
-        "read"
-      ],
-      "purpose": "Reads a document's title when an agent links a Knowledge document to an issue. Kanban keeps only the id and title."
-    }
-  ],
-  "unlocks": [
-    {
-      "id": "knowledge_documents",
-      "title": "Link Knowledge documents to issues",
-      "requires": "knowledge",
-      "provides": {
-        "operations": [
-          "issue_document_link",
-          "issue_document_unlink"
-        ]
-      }
     }
   ],
   "needsAgentDirectory": true,
