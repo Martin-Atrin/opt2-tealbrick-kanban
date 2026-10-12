@@ -105,7 +105,10 @@ function Column({ status, label, issues, onDrop, onOpen }: { status: Status; lab
   );
 }
 
-/** Moving to blocked or done asks for the reason / result (optional), as the agent ops do. */
+/** Moving to blocked or done asks for the reason / result (optional), as the agent ops do. Every move path (drag,
+ *  the issue dialog's Column select) goes through this rule. */
+export const needsNote = (status: Status) => status === "blocked" || status === "done";
+
 function MoveDialog({ move, onClose, onDone }: { move: { issue: Issue; status: Status } | null; onClose: () => void; onDone: () => void }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -216,7 +219,19 @@ function NewIssue({ open, project, data, onClose, onDone }: { open: boolean; pro
   );
 }
 
-function IssueDialog({ id, data, onClose, onChanged }: { id: string | null; data: BoardData; onClose: () => void; onChanged: () => void }) {
+function IssueDialog({
+  id,
+  data,
+  onClose,
+  onChanged,
+  onMove,
+}: {
+  id: string | null;
+  data: BoardData;
+  onClose: () => void;
+  onChanged: () => void;
+  onMove: (issue: Issue, status: Status) => void;
+}) {
   const [detail, setDetail] = useState<IssueDetail | null>(null);
   const [comment, setComment] = useState("");
   const [dep, setDep] = useState("");
@@ -267,7 +282,13 @@ function IssueDialog({ id, data, onClose, onChanged }: { id: string | null; data
                 value={issue.status}
                 disabled={busy}
                 options={COLUMNS.map((c) => ({ value: c.status, label: c.label }))}
-                onChange={(e) => void act(() => run("board_issue_update", { issue: issue.id, status: e.target.value as Status }))}
+                onChange={(e) => {
+                  // the one move rule (QA S3): Blocked / Done ask for the reason / result, like a drag
+                  if (needsNote(e.target.value as Status)) {
+                    onClose();
+                    onMove(issue as Issue, e.target.value as Status);
+                  } else void act(() => run("board_issue_update", { issue: issue.id, status: e.target.value as Status }));
+                }}
               />
             </Field>
             <Field label="Priority">
@@ -671,7 +692,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
   const onDrop = (id: string, status: Status) => {
     const issue = data.issues.find((i) => i.id === id);
     if (!issue || issue.status === status) return;
-    if (status === "blocked" || status === "done") return setMove({ issue, status });
+    if (needsNote(status)) return setMove({ issue, status });
     setMoveError(null);
     run("board_issue_update", { issue: id, status })
       .then(reload)
@@ -736,7 +757,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
           <ActivityList items={data.activity} />
         </>
       )}
-      <IssueDialog id={open} data={data} onClose={() => setOpen(null)} onChanged={reload} />
+      <IssueDialog id={open} data={data} onClose={() => setOpen(null)} onChanged={reload} onMove={(issue, status) => setMove({ issue, status })} />
       <MoveDialog
         move={move}
         onClose={() => setMove(null)}
