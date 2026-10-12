@@ -14,6 +14,7 @@ import {
   type IssueDetail,
   PRIORITIES,
   type Priority,
+  type Project,
   run,
   STATUS_LABEL,
   type Status,
@@ -41,11 +42,12 @@ export function useBoard(project: string | null) {
   return { data, error, reload };
 }
 
-function assigneeOptions(agents: Agent[]) {
+/** Active agents, plus `keep` (an issue's current assignee that has left the workspace) so it still shows. */
+function assigneeOptions(agents: Agent[], keep?: string) {
   return [
     { value: "", label: "Nobody" },
     { value: "owner", label: "Me (owner)" },
-    ...agents.filter((a) => a.active).map((a) => ({ value: a.id, label: a.name })),
+    ...agents.filter((a) => a.active || a.id === keep).map((a) => ({ value: a.id, label: a.active ? a.name : `${a.name} (left)` })),
   ];
 }
 const priorityTone = (p: Priority) => (p === "high" ? "action" : "neutral");
@@ -275,7 +277,7 @@ function IssueDialog({ id, data, onClose, onChanged }: { id: string | null; data
               <Select
                 value={issue.assignee ? (issue.assignee.kind === "owner" ? "owner" : issue.assignee.id) : ""}
                 disabled={busy}
-                options={assigneeOptions(data.agents)}
+                options={assigneeOptions(data.agents, issue.assignee?.kind === "agent" ? issue.assignee.id : undefined)}
                 onChange={(e) => void act(() => run("board_issue_update", { issue: issue.id, assignee: e.target.value || null }))}
               />
             </Field>
@@ -393,7 +395,21 @@ export function ActivityList({ items }: { items: Activity[] }) {
   );
 }
 
-function NewProject({ open, agents, onClose, onDone }: { open: boolean; agents: Agent[]; onClose: () => void; onDone: (id: string) => void }) {
+type SetAccess = ReturnType<typeof useScopes>["set"];
+/** Sets one access level (null = none) on a project for every listed agent; returns the names that failed. */
+async function grantAll(set: SetAccess, agents: Agent[], project: string, level: string | null): Promise<string[]> {
+  const failed: string[] = [];
+  for (const a of agents) {
+    try {
+      await set(a.id as never, "project", project, level);
+    } catch {
+      failed.push(a.name);
+    }
+  }
+  return failed;
+}
+
+function NewProject({ open, agents, onClose, onDone }: { open: boolean; agents: Agent[]; onClose: () => void; onDone: (id: string, warning: string | null) => void }) {
   const { set } = useScopes();
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
@@ -405,11 +421,11 @@ function NewProject({ open, agents, onClose, onDone }: { open: boolean; agents: 
     setError(null);
     try {
       const r = await run("board_project_create", { name: name.trim(), summary, shared });
-      // The `shared` default grant reaches agents seen later; agents already here get the same access now.
-      if (shared) for (const a of agents.filter((x) => x.active)) await set(a.id as never, "project", r.project.id, "contribute");
       setName("");
       setSummary("");
-      onDone(r.project.id);
+      // The `shared` default grant reaches agents seen later; agents already here get the same access now.
+      const failed = shared ? await grantAll(set, agents.filter((x) => x.active), r.project.id, "contribute") : [];
+      onDone(r.project.id, failed.length ? `Project created, but access could not be set for: ${failed.join(", ")}. Set it under Agents & scopes.` : null);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -439,6 +455,98 @@ function NewProject({ open, agents, onClose, onDone }: { open: boolean; agents: 
         <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Shared: every agent can read it and work in it (change per agent under Agents &amp;
         scopes)
       </label>
+    </Dialog>
+  );
+}
+
+/** Rename, share / unshare, delete. Defaults apply once per agent, so this dialog changes the existing grants too:
+ *  share = every active agent may read and work; unshare and delete = every agent loses access (the agent that owns
+ *  an own project keeps it). */
+function EditProject({ project, agents, onClose, onDone }: { project: Project | null; agents: Agent[]; onClose: () => void; onDone: (deleted: boolean, warning: string | null) => void }) {
+  const { set } = useScopes();
+  const [name, setName] = useState("");
+  const [summary, setSummary] = useState("");
+  const [shared, setShared] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!project) return;
+    setName(project.name);
+    setSummary(project.summary);
+    setShared(project.shared);
+    setConfirm(false);
+    setError(null);
+  }, [project]);
+  if (!project) return null;
+  const others = agents.filter((a) => a.id !== project.ownerAgent);
+  const warn = (failed: string[]) => (failed.length ? `Access could not be changed for: ${failed.join(", ")}. Check Agents & scopes.` : null);
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await run("board_project_update", { project: project.id, name: name.trim(), summary, shared });
+      let failed: string[] = [];
+      if (shared !== project.shared) failed = await grantAll(set, shared ? others.filter((a) => a.active) : others, project.id, shared ? "contribute" : null);
+      onDone(false, warn(failed));
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await run("board_project_delete", { project: project.id });
+      onDone(true, warn(await grantAll(set, others, project.id, null)));
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog
+      open
+      title="Project settings"
+      onClose={onClose}
+      busy={busy}
+      footer={
+        <Button variant="primary" onClick={() => void save()} disabled={busy || !name.trim()}>
+          Save
+        </Button>
+      }
+    >
+      {error ? <Notice tone="action" role="alert">{error}</Notice> : null}
+      <Field label="Name">
+        <TextInput value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      <Field label="Summary">
+        <TextInput value={summary} maxLength={4000} onChange={(e) => setSummary(e.target.value)} />
+      </Field>
+      <label className="kb-check">
+        <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Shared: every agent can read it and work in it. Turning this off removes
+        their access.
+      </label>
+      <div className="kb-row kb-danger">
+        {confirm ? (
+          <>
+            <span>Delete this project with all its goals, issues, comments and activity?</span>
+            <Button size="sm" variant="danger" disabled={busy} onClick={() => void remove()}>
+              Delete
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
+              Keep
+            </Button>
+          </>
+        ) : (
+          <Button size="sm" variant="ghost" onClick={() => setConfirm(true)}>
+            Delete project
+          </Button>
+        )}
+      </div>
     </Dialog>
   );
 }
@@ -496,7 +604,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
   const { data, error, reload } = useBoard(project);
   const [open, setOpen] = useState<string | null>(null);
   const [move, setMove] = useState<{ issue: Issue; status: Status } | null>(null);
-  const [dialog, setDialog] = useState<"issue" | "project" | "goal" | null>(null);
+  const [dialog, setDialog] = useState<"issue" | "project" | "goal" | "settings" | null>(null);
   const [who, setWho] = useState("");
   const [moveError, setMoveError] = useState<string | null>(null);
   const shown = useMemo(
@@ -523,7 +631,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
           <Select
             aria-label="Project"
             value={current ?? ""}
-            options={data.projects.map((p) => ({ value: p.id, label: `${p.name}${p.shared ? "" : p.ownerAgent ? " (agent's own)" : " (private)"}` }))}
+            options={data.projects.map((p) => ({ value: p.id, label: `${p.name}${p.shared ? "" : p.ownerAgent ? " (own project)" : " (private)"}` }))}
             onChange={(e) => setProject(e.target.value)}
           />
         ) : null}
@@ -541,6 +649,9 @@ export function Board({ project, setProject }: { project: string | null; setProj
         </Button>
         <Button size="sm" onClick={() => setDialog("project")}>
           New project
+        </Button>
+        <Button size="sm" disabled={!current} onClick={() => setDialog("settings")}>
+          Project settings
         </Button>
         <Button size="sm" variant="ghost" onClick={reload}>
           Refresh
@@ -565,6 +676,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
               <Column key={c.status} status={c.status} label={c.label} issues={shown.filter((i) => i.status === c.status)} onDrop={onDrop} onOpen={setOpen} />
             ))}
           </div>
+          {data.issues.length >= 1000 ? <Notice tone="action">This project has more than 1000 issues; the board shows the first 1000 by priority. Agents can list all of them.</Notice> : null}
           <h3>Recent activity</h3>
           <ActivityList items={data.activity} />
         </>
@@ -580,6 +692,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
       />
       {current ? (
         <NewIssue
+          key={current}
           open={dialog === "issue"}
           project={current}
           data={data}
@@ -601,12 +714,24 @@ export function Board({ project, setProject }: { project: string | null; setProj
           }}
         />
       ) : null}
+      <EditProject
+        project={dialog === "settings" ? (data.projects.find((p) => p.id === current) ?? null) : null}
+        agents={data.agents}
+        onClose={() => setDialog(null)}
+        onDone={(deleted, warning) => {
+          setDialog(null);
+          setMoveError(warning);
+          if (deleted) setProject(null);
+          else reload();
+        }}
+      />
       <NewProject
         open={dialog === "project"}
         agents={data.agents}
         onClose={() => setDialog(null)}
-        onDone={(id) => {
+        onDone={(id, warning) => {
           setDialog(null);
+          setMoveError(warning);
           setProject(id);
         }}
       />

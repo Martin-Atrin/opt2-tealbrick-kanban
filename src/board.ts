@@ -126,7 +126,8 @@ function agentName(db: Db, id: string): string | null {
 }
 
 /** Resolves an assignee input ("me", "owner" or an agent id from the directory) to a stored (kind, id). */
-export function resolveAssignee(db: Db, input: string, caller: Actor): { kind: "agent" | "owner"; id: string } {
+/** `forFilter`: also accept agents that left the workspace (to find their remaining work). */
+export function resolveAssignee(db: Db, input: string, caller: Actor, forFilter = false): { kind: "agent" | "owner"; id: string } {
   if (input === "me") {
     if (caller.kind === "agent") return { kind: "agent", id: caller.id };
     if (caller.kind === "owner") return { kind: "owner", id: OWNER_ID };
@@ -134,7 +135,7 @@ export function resolveAssignee(db: Db, input: string, caller: Actor): { kind: "
   }
   if (input === OWNER_ID) return { kind: "owner", id: OWNER_ID };
   const r = db.prepare("SELECT active FROM agents WHERE id = ?").get(input);
-  if (!r || Number(r.active) !== 1) throw invalid("assignee_unknown", "assignee must be an agent of this workspace, \"me\" or \"owner\"");
+  if (!r || (!forFilter && Number(r.active) !== 1)) throw invalid("assignee_unknown", "assignee must be an agent of this workspace, \"me\" or \"owner\"");
   return { kind: "agent", id: input };
 }
 
@@ -242,9 +243,10 @@ export function insertProject(db: Db, p: { id: string; name: string; summary?: s
 
 /** The own project of an agent or app caller (id = caller id). Created when missing: the SDK may create the scope
  *  instance on its own (`own` default grant for an app caller on its first call) before this app has a row. */
-export function ensureOwnProject(db: Db, owner: { id: string; name: string }, now = Date.now()): void {
-  if (projectRow(db, owner.id)) return;
+export function ensureOwnProject(db: Db, owner: { id: string; name: string }, now = Date.now()): boolean {
+  if (projectRow(db, owner.id)) return false;
   insertProject(db, { id: owner.id, name: `${owner.name} work`.slice(0, 80), shared: false, ownerAgent: owner.id }, { kind: "app", id: "kanban", name: "Kanban" }, now);
+  return true;
 }
 
 export function updateProject(db: Db, id: string, patch: { name?: string; summary?: string; shared?: boolean }, actor: Actor, now = Date.now()): ProjectView {
@@ -589,7 +591,10 @@ export function updateIssue(db: Db, id: string, p: IssuePatch, actor: Actor, now
   if (next.status === "done") {
     if (p.result !== undefined) next.result = p.result;
     if (r.status !== "done") next.completedAt = now;
-  } else next.completedAt = null;
+  } else {
+    next.completedAt = null;
+    next.result = null;
+  }
 
   const changes: string[] = [];
   if (next.title !== r.title) changes.push("title");
@@ -600,7 +605,7 @@ export function updateIssue(db: Db, id: string, p: IssuePatch, actor: Actor, now
     changes.push(next.assigneeKind ? `assigned to ${actorOf(db, next.assigneeKind, next.assigneeId).name}` : "unassigned");
   if (next.goal !== strOrNull(r.goal)) changes.push(next.goal ? "goal set" : "goal cleared");
   if (next.blockedReason !== strOrNull(r.blocked_reason) && next.blockedReason) changes.push(`blocked: ${next.blockedReason}`);
-  if (next.result !== strOrNull(r.result) && next.result) changes.push(`result: ${next.result.split("\n")[0]}`);
+  if (next.result !== strOrNull(r.result)) changes.push(next.result ? `result: ${next.result.split("\n")[0]}` : "result cleared");
   if (changes.length === 0) return { issue: toIssue(db, r), promoted: [] };
 
   const deps = dependents(db, id);

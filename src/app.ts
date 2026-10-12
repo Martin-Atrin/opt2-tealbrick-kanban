@@ -100,12 +100,19 @@ export function actorOf(ctx: Pick<OpContext, "caller">): Actor {
   return { kind: c.type, id: c.id, name: c.name };
 }
 
-/** Per agent/app call: keep the directory name current and make sure the caller's own project row exists. */
-function prepare(ctx: OpContext): Actor {
+/** Per agent/app call: keep the directory name current and make sure the caller's own project row exists (also
+ *  after the caller deleted it: the scope instance label is restored). */
+async function prepare(ctx: OpContext): Promise<Actor> {
   const a = actorOf(ctx);
   if (a.kind === "agent") upsertAgent(ctx.db, { id: a.id, name: a.name, mode: ctx.caller.mode ?? "free" });
-  if (a.kind !== "owner") ensureOwnProject(ctx.db, a);
+  if (a.kind !== "owner" && ensureOwnProject(ctx.db, a)) await ctx.scopes.instances.create(PROJECT_SCOPE, a.id, `${a.name} work`.slice(0, 80), { ownerAgent: a.id as never });
   return a;
+}
+/** Free text after trim must not be empty (the schema checks only the raw length). */
+function text(v: string, field: string): string {
+  const t = v.trim();
+  if (!t) throw new TbError(`${field}_empty`, `${field} is empty`, 400);
+  return t;
 }
 
 const tx = <T>(ctx: OpContext, fn: () => T): T => ctx.db.transaction(fn);
@@ -145,14 +152,14 @@ export const handlers = {
   [OP.projectsList]: op<Record<string, never>, unknown>({
     scope: () => null,
     async run(_input, ctx) {
-      prepare(ctx);
+      await prepare(ctx);
       return { projects: listProjects(ctx.db, await ctx.scope.readable(PROJECT_SCOPE), ctx.caller.id) };
     },
   }),
   [OP.projectGet]: op<ProjectGetInput, unknown>({
     scope: (i) => i.project,
     async run(i, ctx) {
-      prepare(ctx);
+      await prepare(ctx);
       await needProject(ctx, i.project, "read");
       return { project: getProject(ctx.db, i.project), goals: listGoals(ctx.db, [i.project]) };
     },
@@ -161,7 +168,7 @@ export const handlers = {
     scope: (i) => i.project,
     redact: (i) => `project ${i.project}`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needProject(ctx, i.project, "update");
       const p = tx(ctx, () => updateProject(ctx.db, i.project, { name: i.name, summary: i.summary }, a));
       await ctx.scopes.instances.create(PROJECT_SCOPE, p.id, p.name, { shared: p.shared });
@@ -173,7 +180,7 @@ export const handlers = {
     redact: (i) => `project ${i.project}`,
     holdView: (i) => `Delete project ${i.project} with all its goals, issues, comments and activity.`,
     async run(i, ctx) {
-      prepare(ctx);
+      await prepare(ctx);
       await needProject(ctx, i.project, "delete");
       const p = getProject(ctx.db, i.project);
       tx(ctx, () => deleteProject(ctx.db, i.project));
@@ -186,7 +193,7 @@ export const handlers = {
   [OP.goalsList]: op<GoalsListInput, unknown>({
     scope: (i) => i.project ?? null,
     async run(i, ctx) {
-      prepare(ctx);
+      await prepare(ctx);
       return { goals: listGoals(ctx.db, await readable(ctx, i.project), i.status) };
     },
   }),
@@ -194,7 +201,7 @@ export const handlers = {
     scope: (i, c) => ownOr(i.project, c),
     redact: (i) => `goal "${i.title.slice(0, 80)}"`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       const project = ownOr(i.project, ctx.caller);
       await needProject(ctx, project, "create");
       return { goal: tx(ctx, () => createGoal(ctx.db, { project, title: i.title, summary: i.summary, horizon: i.horizon }, a)) };
@@ -204,7 +211,7 @@ export const handlers = {
     scope: () => null,
     redact: (i) => `goal ${i.goal}`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needGoal(ctx, i.goal, "update");
       return { goal: tx(ctx, () => updateGoal(ctx.db, i.goal, i, a)) };
     },
@@ -214,7 +221,7 @@ export const handlers = {
     redact: (i) => `goal ${i.goal}`,
     holdView: (i) => `Delete goal ${i.goal}. Its issues stay and lose the goal link.`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needGoal(ctx, i.goal, "delete");
       tx(ctx, () => deleteGoal(ctx.db, i.goal, a));
       return { ok: true };
@@ -225,11 +232,11 @@ export const handlers = {
   [OP.issuesList]: op<IssuesListInput, unknown>({
     scope: (i) => i.project ?? null,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       return listIssues(ctx.db, {
         projects: await readable(ctx, i.project),
         status: i.status,
-        assignee: i.assignee === undefined ? undefined : resolveAssignee(ctx.db, i.assignee, a),
+        assignee: i.assignee === undefined ? undefined : resolveAssignee(ctx.db, i.assignee, a, true),
         goal: i.goal,
         template: i.template,
         ready: i.ready,
@@ -241,7 +248,7 @@ export const handlers = {
   [OP.issueGet]: op<IssueGetInput, unknown>({
     scope: () => null,
     async run(i, ctx) {
-      prepare(ctx);
+      await prepare(ctx);
       const r = await needIssue(ctx, i.issue, "read");
       return { issue: toIssue(ctx.db, r), dependents: dependents(ctx.db, i.issue), comments: listComments(ctx.db, i.issue) };
     },
@@ -250,7 +257,7 @@ export const handlers = {
     scope: (i, c) => ownOr(i.project, c),
     redact: (i) => `issue "${i.title.slice(0, 80)}"`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       const project = ownOr(i.project, ctx.caller);
       await needProject(ctx, project, "create");
       const who = assignee(ctx, i.assignee, a);
@@ -261,7 +268,7 @@ export const handlers = {
     scope: () => null,
     redact: sayIssue,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "update");
       const { issue: _id, assignee: as, ...rest } = i;
       return { issue: tx(ctx, () => updateIssue(ctx.db, i.issue, { ...rest, assignee: assignee(ctx, as, a) }, a)).issue };
@@ -271,7 +278,7 @@ export const handlers = {
     scope: () => null,
     redact: sayIssue,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "create");
       return { comment: tx(ctx, () => addComment(ctx.db, i.issue, i.body, a)) };
     },
@@ -280,7 +287,7 @@ export const handlers = {
     scope: () => null,
     redact: (i) => `issue ${i.issue} depends on ${i.dependsOn}`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "update");
       return { issue: tx(ctx, () => linkIssue(ctx.db, i.issue, i.dependsOn, a)) };
     },
@@ -289,7 +296,7 @@ export const handlers = {
     scope: () => null,
     redact: (i) => `issue ${i.issue} no longer depends on ${i.dependsOn}`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "update");
       return { issue: tx(ctx, () => unlinkIssue(ctx.db, i.issue, i.dependsOn, a)) };
     },
@@ -298,18 +305,18 @@ export const handlers = {
     scope: () => null,
     redact: sayIssue,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "update");
-      return { issue: tx(ctx, () => updateIssue(ctx.db, i.issue, { status: "blocked", blockedReason: i.reason.trim() }, a)).issue };
+      return { issue: tx(ctx, () => updateIssue(ctx.db, i.issue, { status: "blocked", blockedReason: text(i.reason, "reason") }, a)).issue };
     },
   }),
   [OP.issueComplete]: op<IssueCompleteInput, unknown>({
     scope: () => null,
     redact: sayIssue,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "update");
-      return tx(ctx, () => updateIssue(ctx.db, i.issue, { status: "done", result: i.result.trim() }, a));
+      return tx(ctx, () => updateIssue(ctx.db, i.issue, { status: "done", result: text(i.result, "result") }, a));
     },
   }),
   [OP.issueDelete]: op<IssueDeleteInput, unknown>({
@@ -317,7 +324,7 @@ export const handlers = {
     redact: sayIssue,
     holdView: (i) => `Delete issue ${i.issue} with its comments and activity.`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "delete");
       tx(ctx, () => deleteIssue(ctx.db, i.issue, a));
       return { ok: true };
@@ -326,7 +333,7 @@ export const handlers = {
   [OP.activityList]: op<ActivityListInput, unknown>({
     scope: (i) => i.project ?? null,
     async run(i, ctx) {
-      prepare(ctx);
+      await prepare(ctx);
       if (i.issue) {
         const r = await needIssue(ctx, i.issue, "read");
         if (i.project && i.project !== r.project) throw notFound("issue");
@@ -338,7 +345,7 @@ export const handlers = {
   [OP.workNext]: op<WorkNextInput, unknown>({
     scope: () => null,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       if (a.kind !== "agent") return { ready: [], inProgress: [] };
       const projects = await ctx.scope.readable(PROJECT_SCOPE);
       const me = { kind: "agent" as const, id: a.id };
@@ -353,17 +360,17 @@ export const handlers = {
     scope: () => null,
     redact: (i) => `issue ${i.issue}: document ${i.document}`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "update");
       // C88: the agent supplies the title (it read the document with its own grant); Kanban never reads Knowledge for it.
-      return { issue: tx(ctx, () => linkDocument(ctx.db, i.issue, { id: i.document, title: i.title.trim() }, a)) };
+      return { issue: tx(ctx, () => linkDocument(ctx.db, i.issue, { id: i.document, title: text(i.title, "title") }, a)) };
     },
   }),
   [OP.issueDocumentUnlink]: op<IssueDocumentUnlinkInput, unknown>({
     scope: () => null,
     redact: (i) => `issue ${i.issue}: document ${i.document}`,
     async run(i, ctx) {
-      const a = prepare(ctx);
+      const a = await prepare(ctx);
       await needIssue(ctx, i.issue, "update");
       return { issue: tx(ctx, () => unlinkDocument(ctx.db, i.issue, i.document, a)) };
     },

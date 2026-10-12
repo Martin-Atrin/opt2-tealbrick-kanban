@@ -8,7 +8,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { manifestDigest, validateManifest } from "@opt2-tealbrick/manifest";
+import { manifestDigest, validateAgainstSchema, validateManifest } from "@opt2-tealbrick/manifest";
 import { defineApp, type HandlerSpec, startApp } from "@opt2-tealbrick/miniapp-sdk";
 import { MANIFEST_DIGEST, OP } from "#kit";
 import { definition, handlers, manifest } from "../src/app.ts";
@@ -27,7 +27,17 @@ async function freePort(): Promise<number> {
 }
 
 const H = handlers as Record<string, HandlerSpec<any, any>>;
-const call = (op: string, input: unknown, ctx: ReturnType<typeof ctxFor>) => (H[op] as HandlerSpec<any, any>).run(input as never, ctx);
+/** Runs a handler like the SDK does: input and output are validated against the manifest schemas. */
+async function call(op: string, input: unknown, ctx: ReturnType<typeof ctxFor>): Promise<unknown> {
+  const view = manifest.operations.find((o) => o.id === op);
+  assert.ok(view, `unknown op ${op}`);
+  const vin = validateAgainstSchema(view.input as never, input as never);
+  assert.ok(vin.ok, `${op} input invalid: ${JSON.stringify(vin.ok ? null : vin.errors)}`);
+  const out = await (H[op] as HandlerSpec<any, any>).run(input as never, ctx);
+  const vout = validateAgainstSchema(view.output as never, out as never);
+  assert.ok(vout.ok, `${op} output invalid: ${JSON.stringify(vout.ok ? null : vout.errors)}`);
+  return out;
+}
 
 const A: FakeCaller = { type: "agent", id: "agt_01J00000000000000000000AAA", name: "Agent A" };
 const B: FakeCaller = { type: "agent", id: "agt_01J00000000000000000000BBB", name: "Agent B" };
@@ -240,4 +250,25 @@ test("Evolution contract: issues_list {status: done, limit: 200} from an app cal
   );
   const byTemplate = (await call("issues_list", { template: "weekly-report" }, a)) as any;
   assert.equal(byTemplate.issues.length, 2);
+});
+
+test("review fixes: empty-after-trim text refused; result cleared on reopen; filter by a removed agent; own project restored", async () => {
+  const db = workspace();
+  upsertAgent(db, { id: A.id, name: A.name, mode: "free" });
+  upsertAgent(db, { id: B.id, name: B.name, mode: "free" });
+  const a = ctxFor(db, A, { [A.id]: CRUD.manage });
+  const i = (await call("issue_create", { title: "t", assignee: B.id }, a)) as any;
+  await assert.rejects(call("issue_block", { issue: i.issue.id, reason: "   " }, a), { code: "reason_empty" });
+  await assert.rejects(call("issue_complete", { issue: i.issue.id, result: " " }, a), { code: "result_empty" });
+  await assert.rejects(call("issue_document_link", { issue: i.issue.id, document: "doc_1", title: " " }, a), { code: "title_empty" });
+  await call("issue_complete", { issue: i.issue.id, result: "shipped" }, a);
+  const reopened = (await call("issue_update", { issue: i.issue.id, status: "todo" }, a)) as any;
+  assert.equal(reopened.issue.result, null);
+  await definition.events?.agentRemoved?.({ id: B.id as never, name: B.name, mode: "free", status: "active" }, { db, log: a.log } as never);
+  const orphaned = (await call("issues_list", { assignee: B.id }, a)) as any;
+  assert.equal(orphaned.issues.length, 1, "a removed agent's work can still be listed");
+  await assert.rejects(call("issue_update", { issue: i.issue.id, assignee: B.id }, a), { code: "assignee_unknown" });
+  await call("project_delete", { project: A.id }, a);
+  await call("projects_list", {}, a);
+  assert.deepEqual(a.instances.at(-1), { type: "project", id: A.id, label: "Agent A work", shared: undefined }, "own project re-created with its label");
 });
