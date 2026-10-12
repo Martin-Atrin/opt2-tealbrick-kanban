@@ -264,9 +264,34 @@ export function updateProject(db: Db, id: string, patch: { name?: string; summar
       now,
       id,
     );
+    if (patch.shared === false) db.prepare("DELETE FROM share_grants WHERE project = ?").run(id);
     logActivity(db, { project: id, issue: null, actor, kind: "project_updated", summary: `Project updated: ${changes.join(", ")}` }, now);
   }
   return getProject(db, id) as ProjectView;
+}
+
+// ---------------------------------------------------------------- shared-project access (QA S2)
+
+export interface SharePair {
+  project: string;
+  agent: string;
+}
+/** Records pairs that got the shared access (only for projects that are still shared). */
+export function recordShareGrants(db: Db, pairs: readonly SharePair[], now = Date.now()): void {
+  const ins = db.prepare("INSERT OR IGNORE INTO share_grants (project, agent, applied_at) VALUES (?, ?, ?)");
+  for (const p of pairs) if (Number(projectRow(db, p.project)?.shared ?? 0) === 1) ins.run(p.project, p.agent, now);
+}
+export function shareState(db: Db): { shared: string[]; applied: SharePair[] } {
+  return {
+    shared: db
+      .prepare("SELECT id FROM projects WHERE shared = 1 ORDER BY id")
+      .all()
+      .map((r) => String(r.id)),
+    applied: db
+      .prepare("SELECT g.project, g.agent FROM share_grants g JOIN projects p ON p.id = g.project AND p.shared = 1 ORDER BY g.project, g.agent")
+      .all()
+      .map((r) => ({ project: String(r.project), agent: String(r.agent) })),
+  };
 }
 
 /** Deletes the project's app data. The scope instance stays (the SDK has no instance delete); its row is gone, so it
@@ -277,6 +302,7 @@ export function deleteProject(db: Db, id: string): void {
   for (const issue of issues) purgeIssue(db, issue);
   db.prepare("DELETE FROM goals WHERE project = ?").run(id);
   db.prepare("DELETE FROM activity WHERE project = ?").run(id);
+  db.prepare("DELETE FROM share_grants WHERE project = ?").run(id);
   db.prepare("DELETE FROM projects WHERE id = ?").run(id);
 }
 

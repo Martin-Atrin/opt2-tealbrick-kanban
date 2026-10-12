@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { type CrudAction, ulid } from "@opt2-tealbrick/manifest";
-import { type AppDefinition, defineApp, type HandlerSpec, type OpContext, type SdkAppDefinition, TbError } from "@opt2-tealbrick/miniapp-sdk";
+import { type AppDefinition, type Db, defineApp, type HandlerSpec, type OpContext, type SdkAppDefinition, TbError } from "@opt2-tealbrick/miniapp-sdk";
 import {
   type ActivityListInput,
   type BoardCommentAddInput,
@@ -23,6 +23,7 @@ import {
   type BoardProjectCreateInput,
   type BoardProjectDeleteInput,
   type BoardProjectUpdateInput,
+  type BoardShareSyncInput,
   type BoardViewInput,
   type GoalCreateInput,
   type GoalDeleteInput,
@@ -75,7 +76,9 @@ import {
   OWNER_NAME,
   PROJECT_SCOPE,
   projectRow,
+  recordShareGrants,
   resolveAssignee,
+  shareState,
   toIssue,
   unlinkDocument,
   unlinkIssue,
@@ -113,6 +116,21 @@ function text(v: string, field: string): string {
   const t = v.trim();
   if (!t) throw new TbError(`${field}_empty`, `${field} is empty`, 400);
   return t;
+}
+
+/** The app DB for `scope()` resolvers (bound once in onStart; `scope()` gets no context). */
+let scopeDb: Db | null = null;
+export function bindScopeDb(db: Db | null): void {
+  scopeDb = db;
+}
+/** Write ops that name an issue or goal target the project that owns it, so the SDK checks access to THAT project
+ *  (not the caller's best grant) before any hold. A missing row answers not_found before authorize: no hold, no
+ *  receipt (QA S3: deleting a deleted issue must not open a new hold). */
+function ownerProject(kind: "issue" | "goal", id: string): string | null {
+  if (!scopeDb) return null;
+  const r = kind === "issue" ? issueRow(scopeDb, id) : goalRow(scopeDb, id);
+  if (!r) throw notFound(kind);
+  return String(r.project);
 }
 
 const tx = <T>(ctx: OpContext, fn: () => T): T => ctx.db.transaction(fn);
@@ -208,7 +226,7 @@ export const handlers = {
     },
   }),
   [OP.goalUpdate]: op<GoalUpdateInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("goal", i.goal),
     redact: (i) => `goal ${i.goal}`,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -217,7 +235,7 @@ export const handlers = {
     },
   }),
   [OP.goalDelete]: op<GoalDeleteInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("goal", i.goal),
     redact: (i) => `goal ${i.goal}`,
     holdView: (i) => `Delete goal ${i.goal}. Its issues stay and lose the goal link.`,
     async run(i, ctx) {
@@ -265,7 +283,7 @@ export const handlers = {
     },
   }),
   [OP.issueUpdate]: op<IssueUpdateInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: sayIssue,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -275,7 +293,7 @@ export const handlers = {
     },
   }),
   [OP.issueCommentAdd]: op<IssueCommentAddInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: sayIssue,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -284,7 +302,7 @@ export const handlers = {
     },
   }),
   [OP.issueLink]: op<IssueLinkInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: (i) => `issue ${i.issue} depends on ${i.dependsOn}`,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -293,7 +311,7 @@ export const handlers = {
     },
   }),
   [OP.issueUnlink]: op<IssueUnlinkInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: (i) => `issue ${i.issue} no longer depends on ${i.dependsOn}`,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -302,7 +320,7 @@ export const handlers = {
     },
   }),
   [OP.issueBlock]: op<IssueBlockInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: sayIssue,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -311,7 +329,7 @@ export const handlers = {
     },
   }),
   [OP.issueComplete]: op<IssueCompleteInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: sayIssue,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -320,7 +338,7 @@ export const handlers = {
     },
   }),
   [OP.issueDelete]: op<IssueDeleteInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: sayIssue,
     holdView: (i) => `Delete issue ${i.issue} with its comments and activity.`,
     async run(i, ctx) {
@@ -357,7 +375,7 @@ export const handlers = {
     },
   }),
   [OP.issueDocumentLink]: op<IssueDocumentLinkInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: (i) => `issue ${i.issue}: document ${i.document}`,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -367,7 +385,7 @@ export const handlers = {
     },
   }),
   [OP.issueDocumentUnlink]: op<IssueDocumentUnlinkInput, unknown>({
-    scope: () => null,
+    scope: (i) => ownerProject("issue", i.issue),
     redact: (i) => `issue ${i.issue}: document ${i.document}`,
     async run(i, ctx) {
       const a = await prepare(ctx);
@@ -427,6 +445,14 @@ export const handlers = {
       return { ok: true };
     },
   }),
+  [OP.boardShareSync]: op<BoardShareSyncInput, unknown>({
+    async run(i, ctx) {
+      return tx(ctx, () => {
+        recordShareGrants(ctx.db, i.applied ?? []);
+        return shareState(ctx.db);
+      });
+    },
+  }),
   [OP.boardGoalCreate]: op<BoardGoalCreateInput, unknown>({
     async run(i, ctx) {
       return { goal: tx(ctx, () => createGoal(ctx.db, i, actorOf(ctx))) };
@@ -476,6 +502,9 @@ export const definition: SdkAppDefinition = {
   manifest,
   handlers,
   migrations: migrationsDir,
+  async onStart(ctx) {
+    bindScopeDb(ctx.db);
+  },
   events: {
     // needsAgentDirectory: every workspace agent appears here once (first sight). Keep the assignee directory and
     // create the agent's own project (scope instance id = agent id); the SDK then applies the `own` + `shared` grants.

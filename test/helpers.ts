@@ -1,12 +1,13 @@
 // Test helpers: a migrated node:sqlite database shaped like the SDK `Db`, and a handler context with a fake scope view.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import type { CrudAction } from "@opt2-tealbrick/manifest";
 import type { Db, OpContext } from "@opt2-tealbrick/miniapp-sdk";
 
 export function migratedDb(): Db {
   const raw = new DatabaseSync(":memory:");
-  raw.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+  const dir = new URL("../migrations/", import.meta.url);
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".sql")).sort()) raw.exec(readFileSync(new URL(f, dir), "utf8"));
   const db = {
     exec: (sql: string) => raw.exec(sql),
     prepare: (sql: string) => raw.prepare(sql),

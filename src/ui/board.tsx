@@ -1,7 +1,7 @@
 // The owner board: one project at a time, six fixed columns, cards with the agent's name and status. Dragging a card
 // to another column is `board_issue_update {status}` through the person session (keyboard: open the card, pick the
 // column). Goals and recent activity sit next to the board.
-import { useScopes } from "@opt2-tealbrick/miniapp-sdk/client";
+import { useAgents, useScopes } from "@opt2-tealbrick/miniapp-sdk/client";
 import { Button, Dialog, Field, Notice, Select, Tag, TextInput } from "@opt2-tealbrick/ui";
 import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -396,6 +396,40 @@ export function ActivityList({ items }: { items: Activity[] }) {
 }
 
 type SetAccess = ReturnType<typeof useScopes>["set"];
+
+/**
+ * Shared projects give every current agent "Read and work" (QA S2). The SDK's `shared` default reaches only agents
+ * seen after the project existed, so the owner UI applies it to everyone else, once per (project, agent): Kanban
+ * records applied pairs (board_share_sync), so a later owner edit such as "No access" is never undone. Agents come
+ * from the slice (tb.agents_list), so agents that never called Kanban are covered too. Runs when the board opens
+ * and after a project is created or shared.
+ */
+export function useShareSync(): { ready: boolean; sync: () => Promise<string | null> } {
+  const { agents, loading: agentsLoading } = useAgents();
+  const { access, loading: accessLoading, set } = useScopes();
+  const ready = !agentsLoading && !accessLoading;
+  const sync = useCallback(async (): Promise<string | null> => {
+    const state = await run("board_share_sync", {});
+    const done = new Set(state.applied.map((x) => `${x.project}|${x.agent}`));
+    const hasRow = new Set(access.filter((r) => r.type === "project").map((r) => `${r.instanceId}|${r.agent}`));
+    const applied: { project: string; agent: string }[] = [];
+    const failed: string[] = [];
+    for (const project of state.shared)
+      for (const a of agents) {
+        const key = `${project}|${a.id}`;
+        if (done.has(key)) continue;
+        try {
+          if (!hasRow.has(key)) await set(a.id, "project", project, "contribute");
+          applied.push({ project, agent: a.id });
+        } catch {
+          failed.push(a.name);
+        }
+      }
+    if (applied.length) await run("board_share_sync", { applied });
+    return failed.length ? `Shared-project access could not be set for: ${[...new Set(failed)].join(", ")}. Set it under Agents & scopes.` : null;
+  }, [agents, access, set]);
+  return { ready, sync };
+}
 /** Sets one access level (null = none) on a project for every listed agent; returns the names that failed. */
 async function grantAll(set: SetAccess, agents: Agent[], project: string, level: string | null): Promise<string[]> {
   const failed: string[] = [];
@@ -409,8 +443,7 @@ async function grantAll(set: SetAccess, agents: Agent[], project: string, level:
   return failed;
 }
 
-function NewProject({ open, agents, onClose, onDone }: { open: boolean; agents: Agent[]; onClose: () => void; onDone: (id: string, warning: string | null) => void }) {
-  const { set } = useScopes();
+function NewProject({ open, sync, onClose, onDone }: { open: boolean; sync: () => Promise<string | null>; onClose: () => void; onDone: (id: string, warning: string | null) => void }) {
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
   const [shared, setShared] = useState(true);
@@ -423,9 +456,7 @@ function NewProject({ open, agents, onClose, onDone }: { open: boolean; agents: 
       const r = await run("board_project_create", { name: name.trim(), summary, shared });
       setName("");
       setSummary("");
-      // The `shared` default grant reaches agents seen later; agents already here get the same access now.
-      const failed = shared ? await grantAll(set, agents.filter((x) => x.active), r.project.id, "contribute") : [];
-      onDone(r.project.id, failed.length ? `Project created, but access could not be set for: ${failed.join(", ")}. Set it under Agents & scopes.` : null);
+      onDone(r.project.id, shared ? await sync() : null);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -462,7 +493,19 @@ function NewProject({ open, agents, onClose, onDone }: { open: boolean; agents: 
 /** Rename, share / unshare, delete. Defaults apply once per agent, so this dialog changes the existing grants too:
  *  share = every active agent may read and work; unshare and delete = every agent loses access (the agent that owns
  *  an own project keeps it). */
-function EditProject({ project, agents, onClose, onDone }: { project: Project | null; agents: Agent[]; onClose: () => void; onDone: (deleted: boolean, warning: string | null) => void }) {
+function EditProject({
+  project,
+  agents,
+  sync,
+  onClose,
+  onDone,
+}: {
+  project: Project | null;
+  agents: Agent[];
+  sync: () => Promise<string | null>;
+  onClose: () => void;
+  onDone: (deleted: boolean, warning: string | null) => void;
+}) {
   const { set } = useScopes();
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
@@ -487,8 +530,8 @@ function EditProject({ project, agents, onClose, onDone }: { project: Project | 
     try {
       await run("board_project_update", { project: project.id, name: name.trim(), summary, shared });
       let failed: string[] = [];
-      if (shared !== project.shared) failed = await grantAll(set, shared ? others.filter((a) => a.active) : others, project.id, shared ? "contribute" : null);
-      onDone(false, warn(failed));
+      if (shared !== project.shared && !shared) failed = await grantAll(set, others, project.id, null);
+      onDone(false, shared && !project.shared ? await sync() : warn(failed));
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -602,11 +645,23 @@ function NewGoal({ open, project, onClose, onDone }: { open: boolean; project: s
 
 export function Board({ project, setProject }: { project: string | null; setProject: (id: string | null) => void }) {
   const { data, error, reload } = useBoard(project);
+  const { ready: shareReady, sync } = useShareSync();
+  const [synced, setSynced] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [move, setMove] = useState<{ issue: Issue; status: Status } | null>(null);
   const [dialog, setDialog] = useState<"issue" | "project" | "goal" | "settings" | null>(null);
   const [who, setWho] = useState("");
   const [moveError, setMoveError] = useState<string | null>(null);
+  // once per visit: give agents the access of projects that were shared before they were seen (QA S2)
+  useEffect(() => {
+    if (!shareReady || synced) return;
+    setSynced(true);
+    sync()
+      .then((w) => {
+        if (w) setMoveError(w);
+      })
+      .catch((e: unknown) => setMoveError(errorText(e)));
+  }, [shareReady, synced, sync]);
   const shown = useMemo(
     () => (data?.issues ?? []).filter((i) => !who || (who === "none" ? !i.assignee : who === "owner" ? i.assignee?.kind === "owner" : i.assignee?.id === who)),
     [data, who],
@@ -717,6 +772,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
       <EditProject
         project={dialog === "settings" ? (data.projects.find((p) => p.id === current) ?? null) : null}
         agents={data.agents}
+        sync={sync}
         onClose={() => setDialog(null)}
         onDone={(deleted, warning) => {
           setDialog(null);
@@ -727,7 +783,7 @@ export function Board({ project, setProject }: { project: string | null; setProj
       />
       <NewProject
         open={dialog === "project"}
-        agents={data.agents}
+        sync={sync}
         onClose={() => setDialog(null)}
         onDone={(id, warning) => {
           setDialog(null);

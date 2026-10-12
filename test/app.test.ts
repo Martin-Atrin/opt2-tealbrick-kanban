@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { manifestDigest, validateAgainstSchema, validateManifest } from "@opt2-tealbrick/manifest";
 import { defineApp, type HandlerSpec, startApp } from "@opt2-tealbrick/miniapp-sdk";
 import { MANIFEST_DIGEST, OP } from "#kit";
-import { definition, handlers, manifest } from "../src/app.ts";
+import { bindScopeDb, definition, handlers, manifest } from "../src/app.ts";
 import { insertProject, upsertAgent } from "../src/board.ts";
 import { CRUD, ctxFor, type FakeCaller, migratedDb } from "./helpers.ts";
 
@@ -271,4 +271,47 @@ test("review fixes: empty-after-trim text refused; result cleared on reopen; fil
   await call("project_delete", { project: A.id }, a);
   await call("projects_list", {}, a);
   assert.deepEqual(a.instances.at(-1), { type: "project", id: A.id, label: "Agent A work", shared: undefined }, "own project re-created with its label");
+});
+
+test("QA S3: write ops on a missing issue/goal answer not_found in scope() (before authorize, so no hold); existing rows target their own project", async (t) => {
+  const db = workspace();
+  bindScopeDb(db);
+  t.after(() => bindScopeDb(null));
+  upsertAgent(db, { id: A.id, name: A.name, mode: "free" });
+  const a = ctxFor(db, A, { [A.id]: CRUD.manage });
+  const i = (await call("issue_create", { title: "t" }, a)) as any;
+  const g = (await call("goal_create", { title: "g" }, a)) as any;
+  for (const op of ["issue_delete", "issue_update", "issue_block", "issue_complete", "issue_comment_add", "issue_link", "issue_unlink", "issue_document_link", "issue_document_unlink"])
+    assert.equal(H[op]?.scope?.({ issue: i.issue.id }, a.caller as never), A.id, `${op} targets the owning project`);
+  for (const op of ["goal_delete", "goal_update"]) assert.equal(H[op]?.scope?.({ goal: g.goal.id }, a.caller as never), A.id, op);
+  await call("issue_delete", { issue: i.issue.id }, a);
+  assert.throws(() => H.issue_delete?.scope?.({ issue: i.issue.id }, a.caller as never), { code: "not_found" });
+  assert.throws(() => H.goal_delete?.scope?.({ goal: "gol_missing" }, a.caller as never), { code: "not_found" });
+  assert.equal(H.issue_get?.scope?.({ issue: "iss_missing" }, a.caller as never), null, "reads keep the handler check (not_found for unreadable too)");
+});
+
+test("QA S2: shared-project access is recorded once per (project, agent); unshare and delete clear the pairs", async () => {
+  const db = workspace();
+  const owner = ctxFor(db, OWNER);
+  const p = (await call("board_project_create", { name: "Launch" }, owner)) as any;
+  const priv = (await call("board_project_create", { name: "Private", shared: false }, owner)) as any;
+  let state = (await call("board_share_sync", {}, owner)) as any;
+  assert.deepEqual(state, { shared: [p.project.id], applied: [] });
+  state = (await call(
+    "board_share_sync",
+    {
+      applied: [
+        { project: p.project.id, agent: A.id },
+        { project: priv.project.id, agent: A.id },
+      ],
+    },
+    owner,
+  )) as any;
+  assert.deepEqual(state.applied, [{ project: p.project.id, agent: A.id }], "pairs for unshared projects are not recorded");
+  await call("board_project_update", { project: p.project.id, shared: false }, owner);
+  assert.deepEqual(((await call("board_share_sync", {}, owner)) as any).applied, []);
+  await call("board_project_update", { project: p.project.id, shared: true }, owner);
+  await call("board_share_sync", { applied: [{ project: p.project.id, agent: B.id }] }, owner);
+  await call("board_project_delete", { project: p.project.id }, owner);
+  assert.equal(Number(db.prepare("SELECT COUNT(*) AS n FROM share_grants").get()?.n), 0);
 });
