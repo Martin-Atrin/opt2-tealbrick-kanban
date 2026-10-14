@@ -1,6 +1,7 @@
 // Typed person-op calls for the owner board (op ids and I/O types from the generated kit; types only, erased at build).
 import { callOp } from "@opt2-tealbrick/miniapp-sdk/client";
 import type { PersonOps } from "#kit";
+import { errorMessage } from "./standard.tsx";
 
 export type In<K extends keyof PersonOps> = PersonOps[K]["input"];
 export type Out<K extends keyof PersonOps> = PersonOps[K]["output"];
@@ -33,9 +34,33 @@ export const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "low", label: "Low" },
 ];
 
-export function errorText(e: unknown): string {
-  return e instanceof Error ? e.message : "something went wrong";
+/** Plain sentence for a failed call (L18): the cause and what to do, never the upstream text. */
+export function explain(e: unknown): string {
+  switch ((e as { code?: unknown } | null)?.code) {
+    case "not_found":
+      return "That item is gone. Refresh the board and try again.";
+    case "link_cycle":
+      return "That dependency would make a loop. Pick another issue.";
+    case "link_invalid":
+      return "That issue can’t be a dependency here. Pick another issue.";
+    case "comment_empty":
+      return "Write a comment first.";
+    case "assignee_invalid":
+    case "assignee_unknown":
+      return "That assignee isn’t available. Pick another one.";
+    case "goal_invalid":
+      return "That goal belongs to another project. Pick another one.";
+    default:
+      return errorMessage(e);
+  }
 }
+/** Short local time: the time of day for today, else the day and month too. */
 export function when(isoTime: string): string {
-  return new Date(isoTime).toLocaleString();
+  const d = new Date(isoTime);
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${time}`;
 }
+
+/** Moving to blocked or done asks for the reason / result (optional), as the agent ops do. Every move path (drag,
+ *  the issue dialog's Column select) goes through this rule. */
+export const needsNote = (status: Status) => status === "blocked" || status === "done";

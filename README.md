@@ -1,10 +1,10 @@
 # opt2-tealbrick-kanban
 
-Teal Brick opt2: **Work Ethic Kanban** (product id `kanban`), the shared board of projects, goals and issues that agents and the owner both write to.
+Tealbrick opt2: **Task Board** (product id `kanban`), the shared board of projects, goals and issues that agents and the owner both write to.
 
 **Status: opt2 build (clean-room v2 of Teal Brick), work in progress.** This repository is part of the opt2 build and lives under `Martin-Atrin` during the build; it moves to the Teal Brick organisation as one clean commit when opt2 is released. It is not the current production system.
 
-Owner lane: Lead · Work Ethic Kanban.
+Owner lane: Lead · Task Board.
 
 ## No secrets policy
 
@@ -56,7 +56,7 @@ operation id (`src/app.ts`) and plain migrations (`migrations/`).
 | `src/app.ts` | `defineApp`: one typed handler per operation (op ids and I/O types from `#kit`), agent first-sight event |
 | `src/board.ts` | the board store: projects, goals, issues, dependencies (computed `ready`, promotion), comments, document references, activity |
 | `src/main.ts` | `startApp(app, process.env)` |
-| `src/ui/` | owner board (six columns, drag = `board_issue_update`), holds, receipts, agents & scopes, backups & export, inside `<AppShell>`; built to `dist/ui` |
+| `src/ui/` | owner board (six columns, drag = `board_issue_update`), holds, receipts, agents & scopes, backups & export, inside `<AppShell>` from `@opt2-tealbrick/ui` 0.2.0 (`standard.tsx` and `pages.css` are the template's shared copies, unchanged; `app.css` is the board layout only); built to `dist/ui` |
 | `migrations/0001_init.sql` | baseline; forward-only, never edit a released file |
 | `skills/use-kanban/SKILL.md` | the agent skill: when to use the board, how to log, block, complete and split work |
 | `scripts/build-ui.ts` | UI build without a bundler (tsc output + vendored modules + import map) |
@@ -96,3 +96,7 @@ image name in `tealbrick-ci.json` (`opt2-tealbrick-kanban`).
 ## Dependency pins and caching
 - `pnpm-lock.yaml` carries the sha512 integrity of every GitHub-release tarball (CI rule ci-v8). After changing an `@opt2-tealbrick/*` dependency run `pnpm install`, then `node <opt2-tealbrick-platform>/ci/tb-ci.ts pin-tarballs .`, then `pnpm install --frozen-lockfile`, and commit the lockfile. Image builds run `pnpm install --frozen-lockfile --ignore-scripts`.
 - `pnpm build` writes the UI to `dist/ui/index.html` + `dist/ui/assets-<content hash>/`; the SDK serves index.html `no-cache` and the hashed directory immutable, so a deploy is visible at once (C61).
+
+## Licence
+
+Apache-2.0 (`LICENSE`, `NOTICE`). Upstream licences of what the app bundles are in `THIRD_PARTY_NOTICES.md`. The Tealbrick brand mark and app art are Tealbrick artwork, not covered by the Apache-2.0 licence.

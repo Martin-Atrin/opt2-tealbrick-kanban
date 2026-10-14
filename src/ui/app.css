@@ -1,32 +1,41 @@
-/* Kanban board layout. Colours, radius and type come from the design-system tokens (@opt2-tealbrick/ui). */
-.kb-muted { color: var(--tb-muted); font-size: 0.875rem; }
-.kb-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin: 0.5rem 0; }
-.kb-toolbar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
-.kb-toolbar > * { width: auto; }
-.kb-toolbar select { width: auto; min-width: 12rem; }
-.kb-board { display: grid; grid-template-columns: repeat(6, minmax(14rem, 1fr)); gap: 0.75rem; overflow-x: auto; padding-bottom: 0.5rem; }
-.kb-col { background: var(--tb-canvas); border: 1px solid var(--tb-border); border-radius: var(--tb-radius); padding: 0.5rem; min-height: 12rem; }
-.kb-col-over { outline: 2px solid var(--tb-focus); outline-offset: -2px; }
-.kb-col-head { font-size: 0.875rem; margin: 0 0 0.5rem; display: flex; justify-content: space-between; }
-.kb-count { color: var(--tb-muted); font-weight: normal; }
-.kb-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-.kb-card { background: var(--tb-surface); border: 1px solid var(--tb-border); border-radius: var(--tb-radius); cursor: grab; }
+/* Task Board layout only: the toolbar widths, goals, the six board columns and the cards. Buttons, fields, selects,
+   tags, notices, tables and dialogs are the kit; page helpers (.app-page, .toolbar, .ruled, .item) are pages.css.
+   Tokens only (check-system src). */
+.kb-pick { flex: 0 1 220px; min-width: 160px; }
+.kb-grow { flex: 1; }
+
+.kb-goals { display: flex; flex-wrap: wrap; gap: var(--tb-s2) var(--tb-s5); list-style: none; margin: 0; padding: 0; }
+.kb-goals li { display: flex; align-items: center; gap: var(--tb-s2); font-size: var(--tb-text-label); }
+
+.kb-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(176px, 1fr); gap: var(--tb-s3); overflow-x: auto; padding-bottom: var(--tb-s2); }
+.kb-col { display: grid; align-content: start; gap: var(--tb-s2); padding: var(--tb-s3); border-radius: var(--tb-radius-brick); background: var(--tb-plate); min-height: 280px; min-width: 0; }
+.kb-col.is-over { outline: var(--tb-focus-width) solid var(--tb-focus); outline-offset: calc(-1 * var(--tb-focus-width)); }
+.kb-col h3 { display: flex; align-items: center; justify-content: space-between; font-size: var(--tb-text-label); font-weight: var(--tb-weight-label); line-height: 24px; }
+.kb-cards { display: grid; gap: var(--tb-s2); list-style: none; margin: 0; padding: 0; }
+.kb-card { border-radius: var(--tb-radius-brick); cursor: grab; }
 .kb-card:active { cursor: grabbing; }
-.kb-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.25rem; width: 100%; padding: 0.5rem; cursor: pointer; }
-.kb-card-open:focus-visible { outline: 2px solid var(--tb-focus); }
-.kb-card-title { font-weight: 600; overflow-wrap: anywhere; }
-.kb-card-meta { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-.kb-card-reason { font-size: 0.8125rem; color: var(--tb-burgundy-700); overflow-wrap: anywhere; }
-.kb-card-who { font-size: 0.8125rem; color: var(--tb-muted); }
-.kb-goals { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.kb-goal { border: 1px solid var(--tb-border); border-radius: var(--tb-radius); padding: 0.25rem 0.5rem; }
-.kb-detail h4 { margin: 1rem 0 0.25rem; }
-.kb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.5rem; }
-.kb-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.375rem; }
-.kb-activity { max-height: 20rem; overflow-y: auto; }
-.kb-pre { white-space: pre-wrap; margin: 0.125rem 0 0; overflow-wrap: anywhere; }
-.kb-danger { margin-top: 1.5rem; }
-.kb-check { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.5rem; }
-.kb-table { border-collapse: collapse; width: 100%; }
-.kb-table th, .kb-table td { text-align: left; padding: 0.375rem 0.5rem; border-bottom: 1px solid var(--tb-border); vertical-align: top; }
-.kb-scroll { overflow-x: auto; }
+.kb-card-open { box-sizing: border-box; display: grid; gap: var(--tb-s2); justify-items: start; width: 100%; padding: var(--tb-s3); border: 0; border-radius: var(--tb-radius-brick); background: var(--tb-tile); color: var(--tb-ink); box-shadow: var(--tb-ring-strong); font: inherit; text-align: left; cursor: pointer; }
+.kb-card-open:hover { box-shadow: inset 0 0 0 2px var(--tb-ink); }
+.kb-card-open b { font-weight: var(--tb-weight-label); line-height: 22px; overflow-wrap: anywhere; }
+.kb-tags { gap: 6px; }
+.kb-reason { font-size: var(--tb-text-tag); color: var(--tb-danger-ink); line-height: 20px; overflow-wrap: anywhere; }
+.kb-who { font-size: var(--tb-text-hint); color: var(--tb-muted); font-weight: var(--tb-weight-nav); line-height: 16px; }
+.kb-activity { gap: var(--tb-s2); }
+
+/* dialogs */
+.kb-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--tb-s3); }
+.kb-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tb-s3); }
+.kb-tight { gap: var(--tb-s2); }
+.kb-add > .tb-field { flex: 1; min-width: 0; }
+.kb-add > .tb-btn { align-self: end; }
+.kb-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.kb-push { margin-right: auto; }
+
+/* Agents & scopes: one block per agent, one Select per project (a table would scroll, and a scroll container clips the open list) */
+.kb-agent { display: grid; gap: var(--tb-s3); padding: var(--tb-s4) 0; }
+.kb-who-row { gap: var(--tb-s2); }
+.kb-who-row h3 { font-size: 1.0625rem; font-weight: var(--tb-weight-label); line-height: 22px; }
+.kb-grants { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--tb-s3); }
+@media (max-width: 720px) {
+  .kb-three, .kb-pair { grid-template-columns: 1fr; }
+}
