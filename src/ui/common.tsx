@@ -17,7 +17,7 @@ export function ActivityList({ items }: { items: Activity[] }) {
     <div className="ruled">
       {items.map((a) => (
         <div className="item" key={a.id}>
-          <Swatch className={a.actor.kind === "owner" ? "is-needs-you" : undefined} />
+          <Swatch className={a.actor.kind === "owner" ? "is-open" : undefined} />
           <h3>{a.actor.name}</h3>
           <p>{a.summary}</p>
           <span className="meta">{when(a.createdAt)}</span>

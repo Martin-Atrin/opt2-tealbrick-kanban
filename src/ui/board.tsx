@@ -1,7 +1,7 @@
 // The owner board: one project at a time, six fixed columns, cards with the agent's name and status. Dragging a card
 // to another column is `board_issue_update {status}` through the person session (keyboard: open the card, pick the
 // column). Goals and recent activity sit with the board. Dialogs live in ./dialogs.tsx.
-import { Button, Count, EmptyState, Notice, Select, Tag } from "@opt2-tealbrick/ui";
+import { Button, Count, EmptyState, Field, Notice, Select, Tag } from "@opt2-tealbrick/ui";
 import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { type BoardData, COLUMNS, explain, type Issue, needsNote, PRIORITIES, type Priority, run, STATUS_LABEL, type Status } from "./api.ts";
 import { ActivityList, assigneeOptions } from "./common.tsx";
@@ -147,23 +147,21 @@ export function Board({ project, setProject }: { project: string | null; setProj
       ) : null}
       <div className="toolbar">
         {data.projects.length ? (
-          <div className="kb-pick">
+          <Field label="Project" className="kb-pick">
             <Select
-              aria-label="Project"
               value={current ?? ""}
               options={data.projects.map((p) => ({ value: p.id, label: p.name, meta: p.shared ? undefined : p.ownerAgent ? "own project" : "private" }))}
               onValueChange={setProject}
             />
-          </div>
+          </Field>
         ) : null}
-        <div className="kb-pick">
+        <Field label="Assignee filter" className="kb-pick kb-pick-who">
           <Select
-            aria-label="Assignee filter"
             value={who}
             options={[{ value: "", label: "Everyone" }, { value: "none", label: "Unassigned" }, ...assigneeOptions(data.agents).slice(1)]}
             onValueChange={setWho}
           />
-        </div>
+        </Field>
         <span className="kb-grow" />
         <Button variant={current ? "primary" : undefined} disabled={!current} onClick={() => setDialog("issue")}>
           New issue

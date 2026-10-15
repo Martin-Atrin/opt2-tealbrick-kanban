@@ -71,7 +71,7 @@ export function ScopeGrid({ agents }: { agents: readonly Agent[] }) {
             <div className="tb-row kb-who-row">
               <Swatch />
               <h3>{a.name}</h3>
-              <Tag>{a.mode}</Tag>
+              {a.mode ? <Tag>{`${a.mode.charAt(0).toUpperCase()}${a.mode.slice(1)}`}</Tag> : null}
               {a.status === "paused" ? <Tag status="needs-you">paused</Tag> : null}
             </div>
             <div className="kb-grants">

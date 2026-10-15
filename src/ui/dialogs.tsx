@@ -3,7 +3,7 @@
 import { useScopes } from "@opt2-tealbrick/miniapp-sdk/client";
 import { Button, Dialog, Field, Notice, Select, Swatch, Switch, Textarea, TextInput } from "@opt2-tealbrick/ui";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { type Agent, type BoardData, COLUMNS, explain, type Issue, type IssueDetail, needsNote, PRIORITIES, type Priority, type Project, run, STATUS_LABEL, type Status, when } from "./api.ts";
+import { type Agent, type BoardData, COLUMNS, dateOf, explain, type Issue, type IssueDetail, needsNote, PRIORITIES, type Priority, type Project, run, STATUS_LABEL, type Status, when } from "./api.ts";
 import { ActivityList, assigneeOptions } from "./common.tsx";
 
 const COLUMN_OPTIONS = COLUMNS.map((c) => ({ value: c.status, label: c.label }));
@@ -223,6 +223,7 @@ export function IssueDialog({
       open
       title={issue?.title ?? "Issue"}
       kicker={issue ? STATUS_LABEL[issue.status] : undefined}
+      className="kb-issue"
       onClose={onClose}
       busy={busy}
       size="lg"
@@ -281,7 +282,7 @@ export function IssueDialog({
             </Field>
           </div>
           <p className="tb-hint">
-            Created by {issue.createdBy.name} · {when(issue.createdAt)}
+            Created by {issue.createdBy.name} · {dateOf(issue.createdAt)}
             {issue.ready ? " · ready to start" : ""}
           </p>
           {issue.blockedReason ? <Notice tone="needs-you">Blocked: {issue.blockedReason}</Notice> : null}
@@ -309,7 +310,7 @@ export function IssueDialog({
             {candidates.length ? (
               <div className="tb-input-row kb-add">
                 <Field label="Add a dependency">
-                  <Select value={dep} placeholder="Choose an issue" options={candidates.map((c) => ({ value: c.id, label: c.title }))} onValueChange={setDep} />
+                  <Select value={dep} placeholder="Add a dependency…" options={candidates.map((c) => ({ value: c.id, label: c.title }))} onValueChange={setDep} />
                 </Field>
                 <Button
                   disabled={busy || !dep}
@@ -347,7 +348,7 @@ export function IssueDialog({
               <div className="ruled">
                 {detail.comments.map((c) => (
                   <div className="item" key={c.id}>
-                    <Swatch className={c.author.kind === "owner" ? "is-needs-you" : undefined} />
+                    <Swatch className={c.author.kind === "owner" ? "is-open" : undefined} />
                     <h3>{c.author.name}</h3>
                     <p className="kb-pre">{c.body}</p>
                     <span className="meta">{when(c.createdAt)}</span>

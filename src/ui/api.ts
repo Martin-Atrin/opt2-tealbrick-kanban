@@ -54,11 +54,19 @@ export function explain(e: unknown): string {
       return errorMessage(e);
   }
 }
-/** Short local time: the time of day for today, else the day and month too. */
-export function when(isoTime: string): string {
+/** The mockup's time form (C185): "Today 09:41", "Yesterday", else "9 Oct 2026"; en-GB, 24-hour, the same for everyone. */
+const LOCALE = "en-GB";
+const dayKey = (d: Date) => d.toDateString();
+export function when(isoTime: string, now: Date = new Date()): string {
   const d = new Date(isoTime);
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${time}`;
+  if (dayKey(d) === dayKey(now)) return `Today ${d.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}`;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  return dayKey(d) === dayKey(yesterday) ? "Yesterday" : dateOf(isoTime);
+}
+/** The date only, "9 Oct 2026" (en-GB). */
+export function dateOf(isoTime: string): string {
+  return new Date(isoTime).toLocaleDateString(LOCALE, { day: "numeric", month: "short", year: "numeric" });
 }
 
 /** Moving to blocked or done asks for the reason / result (optional), as the agent ops do. Every move path (drag,

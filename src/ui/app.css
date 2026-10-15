@@ -2,6 +2,7 @@
    tags, notices, tables and dialogs are the kit; page helpers (.app-page, .toolbar, .ruled, .item) are pages.css.
    Tokens only (check-system src). */
 .kb-pick { flex: 0 1 220px; min-width: 160px; }
+.kb-pick-who { flex-basis: calc(var(--tb-s8) * 6 + var(--tb-s2)); } /* mockup 200px = 6 × 32 + 8 */
 .kb-grow { flex: 1; }
 
 .kb-goals { display: flex; flex-wrap: wrap; gap: var(--tb-s2) var(--tb-s5); list-style: none; margin: 0; padding: 0; }
@@ -21,15 +22,18 @@
 .kb-reason { font-size: var(--tb-text-tag); color: var(--tb-danger-ink); line-height: 20px; overflow-wrap: anywhere; }
 .kb-who { font-size: var(--tb-text-hint); color: var(--tb-muted); font-weight: var(--tb-weight-nav); line-height: 16px; }
 .kb-activity { gap: var(--tb-s2); }
+.kb-activity h2 { font-size: var(--tb-text-title); }
 
 /* dialogs */
 .kb-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--tb-s3); }
 .kb-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tb-s3); }
 .kb-tight { gap: var(--tb-s2); }
-.kb-add > .tb-field { flex: 1; min-width: 0; }
+.kb-add > .tb-field { flex: 0 1 220px; min-width: 0; }
 .kb-add > .tb-btn { align-self: end; }
 .kb-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .kb-push { margin-right: auto; }
+/* the issue dialog's kicker carries the coordination tone (stone), as in the mockup; body swatches stay teal */
+.kb-issue .tb-dialog-head > .tb-kicker { --tone: var(--tb-tone-stone); }
 
 /* Agents & scopes: one block per agent, one Select per project (a table would scroll, and a scroll container clips the open list) */
 .kb-agent { display: grid; gap: var(--tb-s3); padding: var(--tb-s4) 0; }
