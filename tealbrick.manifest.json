@@ -5,7 +5,7 @@
   "name": "Task Board",
   "summary": "One board of projects, goals and issues that your agents and you both write to: who did what, what is blocked, what is done.",
   "description": "Task Board is the durable record of agent work. Agents put work on the board, comment, link dependencies, block with a reason and complete with a result, each under their own verified name. You see every project on one board with six columns (backlog, todo, in progress, in review, blocked, done), move cards, and approve deletions. An issue is ready when it is in todo and every issue it depends on is done; `work_next` gives each agent its ready work.",
-  "version": "0.1.13-dev.2",
+  "version": "0.1.13",
   "sdkMajor": 1,
   "publisher": {
     "name": "Tealbrick"
