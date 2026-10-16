@@ -1,6 +1,6 @@
 {
   "name": "opt2-tealbrick-kanban",
-  "version": "0.1.12",
+  "version": "0.1.13-dev.1",
   "private": true,
   "description": "Task Board: a Tealbrick opt2 miniapp.",
   "license": "Apache-2.0",
