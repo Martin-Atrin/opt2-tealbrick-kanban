@@ -2,7 +2,7 @@
 
 Task Board (product id `kanban`): the shared board of projects, goals and issues that agents and the owner both write to; the durable record of agent work. Built on the Miniapp SDK.
 
-**Status:** stable 0.1.12; `main` is 0.1.13-dev.2 (dev channel only). Visibility: public, Apache-2.0. Image: `ghcr.io/tealbrick/opt2-tealbrick-kanban` (publicly pullable; as of 2026-10-17 it holds the tags 0.1.13-dev.1 and 0.1.13-dev.2; 0.1.12 and older were published under the former owner's GHCR namespace). The product id stays `kanban`; the display name is Task Board.
+**Status:** stable 0.1.12; `main` is 0.1.13 (dev channel only; its qa1 soak is the gate for stable, C221). Visibility: public, Apache-2.0. Image: `ghcr.io/tealbrick/opt2-tealbrick-kanban` (publicly pullable; as of 2026-10-17 it holds the tags 0.1.13, its earlier dev pre-releases 0.1.13-dev.1 and 0.1.13-dev.2, and `sha-` tags; 0.1.12 and older were published under the former owner's GHCR namespace). The product id stays `kanban`; the display name is Task Board.
 
 - Repository: `Tealbrick/opt2-tealbrick-kanban` (GitHub organisation `Tealbrick`)
 - Licence: Apache-2.0 for the app code (`LICENSE`, `NOTICE`); upstream licences of what the app bundles are in `THIRD_PARTY_NOTICES.md`. The Tealbrick brand mark and app art are Tealbrick artwork and are not covered by the Apache-2.0 licence.
